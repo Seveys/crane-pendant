@@ -6,15 +6,18 @@ import {
   updateProfile, 
   signOut 
 } from 'firebase/auth';
-import { Lock, AlertTriangle, ChevronLeft, Loader2, User } from 'lucide-react'; // Added Loader2, User
+import { 
+  Lock, AlertTriangle, ChevronLeft, Loader2, User, 
+  Linkedin, Github, Globe, Link as LinkIcon // <--- Restored Icon Imports
+} from 'lucide-react';
 
 // --- IMPORTS ---
-import { auth, db, initializeAuth, analytics } from './services/firebase'; // Ensure exports exist
+import { auth, db, initializeAuth, analytics } from './services/firebase'; 
 import { usePendantBuilder } from './hooks/usePendantBuilder';
 
 import AdminPanel from './components/Admin/AdminPanel';
 import Header from './components/Shared/Header';
-import { SaveModal } from './components/Shared/Modals'; // Removed AuthModal import (we use inline login now)
+import { SaveModal } from './components/Shared/Modals';
 
 import Step1_Dashboard from './components/Builder/Step1_Dashboard';
 import Step2_Enclosures from './components/Builder/Step2_Enclosures';
@@ -25,8 +28,11 @@ import SearchResults from './components/Search/SearchResults';
 import PartDetail from './components/Search/PartDetail';
 
 // --- CONFIGURATION ---
-// REPLACE THIS WITH YOUR ACTUAL ADMIN EMAIL(S)
-const ADMIN_EMAILS = ['nickseverance94@gmail.com', 'theseveys@gmail.com']; 
+const ADMIN_EMAILS = [
+    'admin@example.com', 
+    'theseveys@gmail.com', 
+    'nickseverance94@gmail.com'
+]; 
 
 export default function App() {
   // --- 1. APP STATE ---
@@ -34,8 +40,8 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authInitialized, setAuthInitialized] = useState(false);
   
-  // Login Form State (For the mandatory login screen)
-  const [loginMode, setLoginMode] = useState('login'); // 'login' | 'signup'
+  // Login Form State
+  const [loginMode, setLoginMode] = useState('login'); 
   const [loginForm, setLoginForm] = useState({ email: '', password: '', name: '' });
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
@@ -48,30 +54,25 @@ export default function App() {
   const [selectedPartDetail, setSelectedPartDetail] = useState(null);
 
   // --- 2. INITIALIZE HOOKS & FIREBASE ---
-  // Initialize the core logic hook
   const builder = usePendantBuilder(user, db);
 
-  // Initialize Firebase Auth Listener
   useEffect(() => {
     if (auth) {
-        // Note: We do NOT call initializeAuth() here because that forced anonymous login.
-        // We want to force REAL login now.
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             setUser(currentUser);
             setAuthInitialized(true);
         });
         return () => unsubscribe();
     } else {
-        setAuthInitialized(true); // Fallback if auth missing
+        setAuthInitialized(true);
     }
   }, []);
 
-  // Check Admin Status
   const isAdmin = useMemo(() => {
       return user && ADMIN_EMAILS.includes(user.email);
   }, [user]);
 
-  // --- 3. SEARCH DATA AGGREGATION ---
+  // --- 3. SEARCH DATA ---
   const allSearchableItems = useMemo(() => {
       const items = [];
       builder.componentTypes.forEach(c => items.push({ type: 'Component', data: c, match: `${c.name} ${c.partNumber} ${c.kcid} ${c.desc}` }));
@@ -86,8 +87,6 @@ export default function App() {
 
 
   // --- 4. HANDLERS ---
-
-  // Auth Handler
   const handleAuth = async (e) => {
       e.preventDefault();
       if (!auth) { setAuthError("Auth service unavailable"); return; }
@@ -101,7 +100,6 @@ export default function App() {
           } else {
               await signInWithEmailAndPassword(auth, loginForm.email, loginForm.password);
           }
-          // Successful login will trigger onAuthStateChanged
       } catch (err) {
           console.error(err);
           setAuthError(err.message.replace('Firebase: ', '').replace('auth/', ''));
@@ -114,11 +112,10 @@ export default function App() {
       if (!auth) return;
       try {
           await signOut(auth);
-          setViewMode('builder'); // Reset view on logout
+          setViewMode('builder'); 
       } catch (e) { console.error(e); }
   };
 
-  // Save Config Handler
   const handleSaveConfig = async (metaData) => {
       try {
           await builder.saveConfig(metaData);
@@ -129,10 +126,20 @@ export default function App() {
       }
   };
 
+  // --- HELPER: GET FOOTER ICON ---
+  const getFooterIcon = (iconName) => {
+      if (!iconName) return <LinkIcon size={14}/>;
+      switch(iconName.toLowerCase()) {
+          case 'linkedin': return <Linkedin size={14}/>;
+          case 'github': return <Github size={14}/>;
+          case 'website': return <Globe size={14}/>;
+          default: return <LinkIcon size={14}/>;
+      }
+  };
+
 
   // --- 5. RENDER VIEWS ---
 
-  // A. LOADING STATE
   if (!authInitialized) {
       return (
           <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -141,7 +148,6 @@ export default function App() {
       );
   }
 
-  // B. LOGIN GATEKEEPER (Mandatory Login)
   if (!user) {
       return (
           <div className="min-h-screen bg-slate-100 flex items-center justify-center font-sans p-4">
@@ -161,37 +167,17 @@ export default function App() {
                                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Full Name</label>
                                   <div className="relative">
                                       <User size={16} className="absolute top-2.5 left-3 text-slate-400"/>
-                                      <input 
-                                          className="w-full border rounded-lg p-2.5 pl-10 focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all" 
-                                          placeholder="John Doe" 
-                                          value={loginForm.name} 
-                                          onChange={e => setLoginForm({...loginForm, name: e.target.value})} 
-                                          required 
-                                      />
+                                      <input className="w-full border rounded-lg p-2.5 pl-10 focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all" placeholder="John Doe" value={loginForm.name} onChange={e => setLoginForm({...loginForm, name: e.target.value})} required />
                                   </div>
                               </div>
                           )}
                           <div>
                               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email Address</label>
-                              <input 
-                                  type="email" 
-                                  className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all" 
-                                  placeholder="name@company.com" 
-                                  value={loginForm.email} 
-                                  onChange={e => setLoginForm({...loginForm, email: e.target.value})} 
-                                  required 
-                              />
+                              <input type="email" className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all" placeholder="name@company.com" value={loginForm.email} onChange={e => setLoginForm({...loginForm, email: e.target.value})} required />
                           </div>
                           <div>
                               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Password</label>
-                              <input 
-                                  type="password" 
-                                  className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all" 
-                                  placeholder="••••••••" 
-                                  value={loginForm.password} 
-                                  onChange={e => setLoginForm({...loginForm, password: e.target.value})} 
-                                  required 
-                              />
+                              <input type="password" className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all" placeholder="••••••••" value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})} required />
                           </div>
 
                           {authError && (
@@ -200,22 +186,14 @@ export default function App() {
                               </div>
                           )}
 
-                          <button 
-                              disabled={authLoading} 
-                              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
-                          >
+                          <button disabled={authLoading} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2">
                               {authLoading ? <Loader2 size={18} className="animate-spin"/> : (loginMode === 'login' ? 'Sign In' : 'Create Account')}
                           </button>
                       </form>
 
                       <div className="mt-6 pt-6 border-t text-center">
-                          <p className="text-xs text-slate-400 mb-2">
-                              {loginMode === 'login' ? "New here?" : "Already have an account?"}
-                          </p>
-                          <button 
-                              onClick={() => { setLoginMode(loginMode === 'login' ? 'signup' : 'login'); setAuthError(''); }} 
-                              className="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors"
-                          >
+                          <p className="text-xs text-slate-400 mb-2">{loginMode === 'login' ? "New here?" : "Already have an account?"}</p>
+                          <button onClick={() => { setLoginMode(loginMode === 'login' ? 'signup' : 'login'); setAuthError(''); }} className="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors">
                               {loginMode === 'login' ? "Create an Account" : "Sign In to Existing Account"}
                           </button>
                       </div>
@@ -225,30 +203,17 @@ export default function App() {
       );
   }
 
-  // C. ADMIN VIEW (Protected)
   if (viewMode === 'admin') {
       if (isAdmin) {
-          return (
-              <AdminPanel 
-                  {...builder}
-                  onLogout={handleUserLogout}
-                  onReturnToBuilder={() => setViewMode('builder')}
-              />
-          );
+          return <AdminPanel {...builder} onLogout={handleUserLogout} onReturnToBuilder={() => setViewMode('builder')} />;
       } else {
-          // If user tries to access admin but isn't admin, kick back to builder
           setViewMode('builder');
       }
   }
 
-  // D. MAIN BUILDER VIEW
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col">
-      <SaveModal 
-          isOpen={showSaveModal} 
-          onClose={() => setShowSaveModal(false)} 
-          onSave={handleSaveConfig} 
-      />
+      <SaveModal isOpen={showSaveModal} onClose={() => setShowSaveModal(false)} onSave={handleSaveConfig} />
       
       <Header 
           user={user} 
@@ -257,7 +222,6 @@ export default function App() {
           setStep={builder.setStep} 
           onAdminClick={() => setViewMode('admin')} 
           onSaveClick={() => setShowSaveModal(true)}
-          // Auth click removed from header since login is mandatory now
           onLogout={handleUserLogout}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
@@ -270,13 +234,9 @@ export default function App() {
           }}
       />
 
-      {/* REST OF THE APP (Unchanged) */}
       <div className="max-w-6xl mx-auto w-full flex-1 p-4 md:p-8 flex flex-col">
           {viewMode === 'part-detail' ? (
-             <PartDetail 
-                 selectedPartDetail={selectedPartDetail} 
-                 onBack={() => setViewMode(searchQuery ? 'search-results' : 'builder')} 
-             />
+             <PartDetail selectedPartDetail={selectedPartDetail} onBack={() => setViewMode(searchQuery ? 'search-results' : 'builder')} />
           ) : viewMode === 'search-results' ? (
              <SearchResults 
                  searchQuery={searchQuery} 
@@ -296,14 +256,7 @@ export default function App() {
                 
                 <div className="flex-1 p-6 md:p-8 flex flex-col">
                     <div className="animate-in fade-in zoom-in-95 duration-300 h-full flex flex-col">
-                        {builder.step === 1 && (
-                            <Step1_Dashboard 
-                                builder={builder} 
-                                popularConfigs={builder.popularConfigs} 
-                                myBuilds={builder.myBuilds}
-                                onLoadConfig={builder.loadConfig}
-                            />
-                        )}
+                        {builder.step === 1 && <Step1_Dashboard builder={builder} popularConfigs={builder.popularConfigs} myBuilds={builder.myBuilds} onLoadConfig={builder.loadConfig} />}
                         {builder.step === 2 && <Step2_Enclosures builder={builder} />}
                         {builder.step === 3 && <Step3_Configurator builder={builder} />}
                         {builder.step === 4 && <Step4_Summary builder={builder} />}
@@ -313,15 +266,20 @@ export default function App() {
           )}
       </div>
 
+      {/* FIXED FOOTER WITH ICONS */}
       <div className="bg-white border-t py-6 text-center text-slate-500 text-sm">
-          <p className="flex items-center justify-center gap-2">
-              {builder.footerConfig.credits}
-              {builder.footerConfig.links.map(link => (
-                  <a key={link.id} href={link.url} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-800 flex items-center gap-1 ml-2">
-                      {link.label}
-                  </a>
-              ))}
-          </p>
+          <div className="flex flex-col md:flex-row items-center justify-center gap-2">
+              <span>{builder.footerConfig.credits}</span>
+              <span className="hidden md:inline">•</span>
+              <div className="flex items-center gap-4">
+                  {builder.footerConfig.links.map(link => (
+                      <a key={link.id} href={link.url} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors">
+                          {getFooterIcon(link.icon)}
+                          <span className="font-semibold">{link.label}</span>
+                      </a>
+                  ))}
+              </div>
+          </div>
       </div>
     </div>
   );

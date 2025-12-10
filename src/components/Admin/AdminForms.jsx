@@ -4,19 +4,22 @@ import CableForm from './forms/CableForm';
 import ComponentForm from './forms/ComponentForm';
 import EnclosureForm from './forms/EnclosureForm';
 import FooterForm from './forms/FooterForm';
+import SeriesForm from './forms/SeriesForm';
+import CordGripForm from './forms/CordGripForm';
+import PreconfigForm from './forms/PreconfigForm'; // <--- New Import
 
 export default function AdminForms(props) {
     const { 
-        globalTab, selectedManufacturerAdmin, selectedSeriesAdmin, adminSubTab, 
-        editItem, onCancel, onSaveSuccess 
+        globalTab, selectedManufacturerAdmin, adminSubTab, 
+        editItem, isEditingSeries 
     } = props;
 
-    // 1. FOOTER SETTINGS
+    // 1. FOOTER
     if (globalTab === 'footer') {
         return <FooterForm {...props} />;
     }
 
-    // 2. MANUFACTURER (Add New OR Edit Selected)
+    // 2. MANUFACTURER
     const isEditingMfg = editItem && editItem.id === selectedManufacturerAdmin;
     const isAddingMfg = globalTab === 'add-mfg';
 
@@ -24,19 +27,31 @@ export default function AdminForms(props) {
         return <ManufacturerForm {...props} />;
     }
 
-    // 3. CABLES
+    // 3. SERIES RENAME
+    if (isEditingSeries) {
+        return <SeriesForm {...props} />;
+    }
+
+    // --- GLOBAL ASSETS ---
     if (globalTab === 'cables') {
         return <CableForm {...props} />;
     }
+    if (globalTab === 'cordgrips') {
+        return <CordGripForm {...props} />;
+    }
 
-    // 4. COMPONENTS
+    // --- SERIES ASSETS ---
     if (adminSubTab === 'components') {
         return <ComponentForm {...props} />;
     }
-
-    // 5. ENCLOSURES
     if (adminSubTab === 'enclosures') {
         return <EnclosureForm {...props} />;
+    }
+    
+    // 4. PRE-CONFIGURATIONS (NEW)
+    if (adminSubTab === 'preconfigs') {
+        // When adding or editing a preconfig
+        return <PreconfigForm {...props} />;
     }
 
     return null;

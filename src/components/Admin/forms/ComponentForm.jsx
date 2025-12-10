@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
-import { Upload, FileText, FilePlus, Trash2, Loader2 } from 'lucide-react';
+import { Upload, FileText, FilePlus, Loader2 } from 'lucide-react';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../../services/firebase';
 
 export default function ComponentForm({ 
-    editItem, dbActions, selectedManufacturerAdmin, selectedSeriesAdmin, 
+    editItem, dbActions, selectedSeriesAdmin, 
     onCancel, onSaveSuccess 
 }) {
     const [tempImage, setTempImage] = useState(null);
     const [tempDocs, setTempDocs] = useState([]);
     const [uploading, setUploading] = useState(false);
+    
+    // Local state for conditional rendering
+    const [compType, setCompType] = useState(editItem?.type || 'button');
 
     const handleImageUpload = async (e) => {
         const file = e.target.files[0];
@@ -44,20 +47,20 @@ export default function ComponentForm({
     const handleSubmit = (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
-        const scope = formData.get('scope');
-        let seriesValue = 'global';
-        if (scope === 'manufacturer') seriesValue = selectedManufacturerAdmin;
-        if (scope === 'series') seriesValue = selectedSeriesAdmin;
-
+        
         const existingDocs = editItem?.docs || [];
         const finalDocs = [...existingDocs, ...tempDocs];
 
         const newItem = {
             id: formData.get('id'),
-            series: seriesValue,
+            series: selectedSeriesAdmin,
             name: formData.get('name'),
-            partNumber: formData.get('partNumber'),
+            partNumber: formData.get('partNumber'), // <--- SAVED HERE
             kcid: formData.get('kcid'),
+            
+            type: formData.get('type'),
+            category: formData.get('category') || null,
+            
             wires: parseInt(formData.get('wires')),
             holes: parseInt(formData.get('holes')),
             color: formData.get('color'),
@@ -72,21 +75,58 @@ export default function ComponentForm({
 
     return (
         <div className="mb-6 bg-white p-4 border rounded-lg shadow-lg">
-            <h3 className="font-bold mb-4">Edit Component</h3>
+            <h3 className="font-bold mb-4">Edit Component ({selectedSeriesAdmin})</h3>
             <form onSubmit={handleSubmit} className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div className="col-span-3 bg-blue-50 p-2 rounded">
-                    <label className="text-xs font-bold text-blue-800">Scope</label>
-                    <div className="flex gap-4 mt-1">
-                        <label className="flex items-center gap-1 text-xs"><input type="radio" name="scope" value="manufacturer" defaultChecked={editItem?.series === selectedManufacturerAdmin} /> Manufacturer</label>
-                        <label className="flex items-center gap-1 text-xs"><input type="radio" name="scope" value="series" defaultChecked={editItem?.series === selectedSeriesAdmin} /> Series</label>
-                    </div>
-                </div>
+                
+                {/* ID & KCID */}
                 <div><label className="text-xs font-bold">ID</label><input name="id" defaultValue={editItem?.id} required className="w-full border p-2 rounded" /></div>
                 <div><label className="text-xs font-bold">KCID</label><input name="kcid" defaultValue={editItem?.kcid} className="w-full border p-2 rounded" /></div>
+                
+                {/* PART NUMBER FIELD */}
+                <div><label className="text-xs font-bold">Part #</label><input name="partNumber" defaultValue={editItem?.partNumber} className="w-full border p-2 rounded" /></div>
+                
+                {/* NAME */}
                 <div className="col-span-1"><label className="text-xs font-bold">Name</label><input name="name" defaultValue={editItem?.name} required className="w-full border p-2 rounded" /></div>
+                
+                {/* TYPE SELECTOR */}
+                <div>
+                    <label className="text-xs font-bold">Type</label>
+                    <select 
+                        name="type" 
+                        value={compType} 
+                        onChange={(e) => setCompType(e.target.value)}
+                        className="w-full border p-2 rounded"
+                    >
+                        <option value="button">Button</option>
+                        <option value="light">Light</option>
+                        <option value="switch">Switch</option>
+                        <option value="empty">Empty/Blank</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+                {/* CATEGORY SELECTOR (Conditional) */}
+                {compType === 'button' && (
+                    <div>
+                        <label className="text-xs font-bold">Button Function</label>
+                        <select name="category" defaultValue={editItem?.category || 'single_speed'} className="w-full border p-2 rounded">
+                            <option value="single_speed">Single Speed</option>
+                            <option value="two_speed">Two Speed</option>
+                            <option value="three_speed">Three Speed</option>
+                            <option value="four_speed">Four Speed</option>
+                            <option value="five_speed">Five Speed</option>
+                            <option value="six_speed">Six Speed</option>
+                            <option value="on_off">On / Off</option>
+                            <option value="estop">E-Stop</option>
+                        </select>
+                    </div>
+                )}
+                
+                {/* HOLES & WIRES */}
                 <div><label className="text-xs font-bold">Holes Required</label><input name="holes" type="number" defaultValue={editItem?.holes || 1} className="w-full border p-2 rounded" /></div>
                 <div><label className="text-xs font-bold">Wires</label><input name="wires" type="number" defaultValue={editItem?.wires || 0} className="w-full border p-2 rounded" /></div>
                 
+                {/* IMAGE UPLOAD */}
                 <div className="col-span-3">
                     <label className="text-xs font-bold block mb-1">Component Image</label>
                     <div className="flex items-center gap-3">
@@ -99,6 +139,7 @@ export default function ComponentForm({
                     </div>
                 </div>
 
+                {/* DOCUMENTATION */}
                 <div className="col-span-3 border-t pt-3 mt-1">
                     <label className="text-xs font-bold block mb-2 text-slate-500 uppercase">Documentation</label>
                     <div className="space-y-2 mb-2">

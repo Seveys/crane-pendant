@@ -29,6 +29,7 @@ export default function CableForm({ editItem, dbActions, onCancel, onSaveSuccess
     const handleSubmit = (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
+        
         const newItem = {
             part: formData.get('part'),
             kcid: formData.get('kcid'),
@@ -36,8 +37,10 @@ export default function CableForm({ editItem, dbActions, onCancel, onSaveSuccess
             type: formData.get('description'), 
             conductors: parseInt(formData.get('conductors')),
             awg: parseInt(formData.get('awg')),
-            od_min: parseFloat(formData.get('od_min')),
-            od_max: parseFloat(formData.get('od_max')),
+            
+            // CHANGED: Single OD field instead of Min/Max
+            od: parseFloat(formData.get('od')),
+            
             strainRelief: formData.get('strainRelief'),
             image: tempImage || editItem?.image || null
         };
@@ -54,13 +57,18 @@ export default function CableForm({ editItem, dbActions, onCancel, onSaveSuccess
                 
                 <div className="col-span-4">
                     <label className="text-xs font-bold">Description</label>
-                    <textarea name="description" defaultValue={editItem?.description || editItem?.type} className="w-full border p-2 rounded mt-1 h-20 text-sm" placeholder="Cable description..." />
+                    <textarea name="description" defaultValue={editItem?.description || editItem?.type} className="w-full border p-2 rounded mt-1 h-24 text-sm" placeholder="Cable description..." />
                 </div>
 
                 <div><label className="text-xs font-bold">Conductors</label><input name="conductors" type="number" defaultValue={editItem?.conductors} className="w-full border p-1 rounded" /></div>
                 <div><label className="text-xs font-bold">AWG</label><input name="awg" type="number" defaultValue={editItem?.awg || 16} className="w-full border p-1 rounded" /></div>
-                <div><label className="text-xs font-bold">Min OD</label><input name="od_min" type="number" step="0.01" defaultValue={editItem?.od_min} className="w-full border p-1 rounded" /></div>
-                <div><label className="text-xs font-bold">Max OD</label><input name="od_max" type="number" step="0.01" defaultValue={editItem?.od_max} className="w-full border p-1 rounded" /></div>
+                
+                {/* CHANGED: Single OD Input */}
+                <div className="col-span-1">
+                    <label className="text-xs font-bold">Outside Diameter (in)</label>
+                    {/* Fallback to od_max if editing an old item that doesn't have 'od' yet */}
+                    <input name="od" type="number" step="0.01" defaultValue={editItem?.od || editItem?.od_max} className="w-full border p-1 rounded" />
+                </div>
                 
                 <div>
                     <label className="text-xs font-bold">Strain Relief</label>
