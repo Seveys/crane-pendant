@@ -204,7 +204,8 @@ export default function AdminForms({
             <div className="bg-white p-6 rounded shadow-lg max-w-lg">
                 <h3 className="font-bold mb-4">{editItem || selectedManufacturerAdmin ? 'Edit' : 'Add'} Manufacturer</h3>
                 <form onSubmit={handleSaveManufacturer} className="space-y-4">
-                    {!editItem && !selectedManufacturerAdmin && (
+                    {/* Fix: Explicitly check for add-mfg mode to ensure ID field is shown */}
+                    {(!editItem || globalTab === 'add-mfg') && (
                         <div><label className="text-xs font-bold">ID (Slug)</label><input name="id" required className="w-full border p-2 rounded"/></div>
                     )}
                     <div><label className="text-xs font-bold">Name</label><input name="name" defaultValue={editItem?.name || manufacturers.find(m => m.id === selectedManufacturerAdmin)?.name} required className="w-full border p-2 rounded"/></div>

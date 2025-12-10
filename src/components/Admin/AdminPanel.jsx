@@ -55,7 +55,12 @@ export default function AdminPanel(props) {
             <div className="p-4 border-b border-slate-800 font-bold text-white flex justify-between items-center">
                 <span className="flex items-center gap-2"><Database size={18} /> Library</span>
                 <button 
-                    onClick={() => { resetEditState(); setIsEditing(true); setGlobalTab('add-mfg'); }} 
+                    onClick={() => { 
+                        resetEditState(); 
+                        setIsEditing(true); 
+                        setGlobalTab('add-mfg'); 
+                        setSelectedManufacturerAdmin(null); // Fix: Clear selection so "New Item" logic works
+                    }} 
                     className="p-1 hover:bg-slate-700 rounded" title="Add Manufacturer"
                 >
                     <Plus size={16}/>
