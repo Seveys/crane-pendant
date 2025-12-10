@@ -1,56 +1,73 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithCustomToken, signInAnonymously } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getAnalytics } from "firebase/analytics";
+import { getStorage } from "firebase/storage"; // <--- Import Storage
+import { 
+    initializeFirestore, 
+    persistentLocalCache, 
+    persistentMultipleTabManager 
+} from 'firebase/firestore';
 
 // --- CONFIGURATION ---
-// We try to load config from global variables (often injected by hosting providers)
-// but default to null to prevent crashes in development.
 let app = null;
 let auth = null;
 let db = null;
+let analytics = null;
+let storage = null; // <--- Define Storage
 
-// Get App ID or default
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+const appId = 'default-app-id';
+
+// YOUR FIREBASE CONFIGURATION
+const firebaseConfig = {
+  apiKey: "AIzaSyCwNeDAVc8Cv-I5FbvNE2PnuBJfXuwdxqk",
+  authDomain: "crane-pendant.firebaseapp.com",
+  projectId: "crane-pendant",
+  storageBucket: "crane-pendant.firebasestorage.app",
+  messagingSenderId: "963136530916",
+  appId: "1:963136530916:web:45840150d404722efe7ff1",
+  measurementId: "G-7W3TKEFZ3W"
+};
 
 try {
-    const configStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
-    
-    if (configStr) {
-        const firebaseConfig = JSON.parse(configStr);
+    if (firebaseConfig.apiKey) {
         app = initializeApp(firebaseConfig);
         auth = getAuth(app);
-        db = getFirestore(app);
-        console.log("Firebase initialized successfully.");
+        analytics = getAnalytics(app);
+        storage = getStorage(app); // <--- Initialize Storage
+        
+        db = initializeFirestore(app, {
+            localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+        });
+        
+        console.log("Firebase initialized with Storage, Persistence, and Analytics.");
     } else {
-        console.warn("Firebase config not found. App running in offline/demo mode.");
+        // ... (Offline fallback logic remains the same)
+        const configStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
+        if (configStr) {
+            const injectedConfig = JSON.parse(configStr);
+            app = initializeApp(injectedConfig);
+            auth = getAuth(app);
+            db = initializeFirestore(app, {
+                localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+            });
+        }
     }
 } catch (e) {
     console.error("Firebase Initialization Error:", e);
 }
 
-/**
- * Helper to handle initial authentication strategy.
- * Checks for a custom token (e.g., from an embedded environment) or falls back to anonymous.
- */
 export const initializeAuth = async () => {
     if (!auth) return;
-
     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
         try { 
             await signInWithCustomToken(auth, __initial_auth_token); 
-            console.log("Signed in with custom token.");
         } catch(e) { 
-            console.error("Custom token auth failed:", e);
-            // Fallback to anonymous if custom token fails
             if (!auth.currentUser) await signInAnonymously(auth);
         }
     } else {
-        if (!auth.currentUser) {
-            await signInAnonymously(auth);
-            console.log("Signed in anonymously.");
-        }
+        if (!auth.currentUser) await signInAnonymously(auth);
     }
 };
 
-// Export the initialized instances
-export { app, auth, db, appId };
+// Export storage
+export { app, auth, db, analytics, storage, appId };

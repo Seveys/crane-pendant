@@ -1,6 +1,6 @@
 import React from 'react';
 import { ImageIcon, Layers } from 'lucide-react';
-import DataTable from '../Shared/DataTable'; // Assuming you created this file
+import DataTable from '../Shared/DataTable'; 
 
 export default function AdminViews({
     // Data
@@ -14,7 +14,7 @@ export default function AdminViews({
     
     // Actions
     onEdit,
-    onDelete // Optional: Pass delete handlers if implemented
+    onDelete 
 }) {
 
     // --- VIEW: EMPTY STATE ---
@@ -33,7 +33,8 @@ export default function AdminViews({
             { header: 'Img', key: 'image', render: (i) => i.image ? <img src={i.image} className="w-8 h-8 object-contain rounded"/> : <ImageIcon size={16} className="text-slate-300"/> },
             { header: 'KCID', key: 'kcid' },
             { header: 'Part #', key: 'part' },
-            { header: 'Type', key: 'type' },
+            // CHANGED: Header to Description, Key to description with fallback
+            { header: 'Description', key: 'description', render: (i) => i.description || i.type },
             { header: 'Cond.', key: 'conductors' }
         ];
         return <DataTable columns={columns} data={cables} onEdit={onEdit} onDelete={onDelete} />;
@@ -51,9 +52,7 @@ export default function AdminViews({
 
     // --- VIEW: MANUFACTURER SETTINGS ---
     if (selectedManufacturerAdmin && !selectedSeriesAdmin) {
-        // This view is mostly handled by the "Edit Manufacturer" form in AdminForms.
-        // But if you wanted a list of series here, you could add it.
-        return null; // The form appears by default in Panel logic if isEditing is true, or we could show a dashboard here.
+        return null; 
     }
 
     // --- VIEW: SERIES CONTENT ---

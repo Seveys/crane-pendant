@@ -68,7 +68,8 @@ export default function Step4_Summary({ builder }) {
                             <div className="flex items-center gap-4">
                                 {recommendedCable.image && <img src={recommendedCable.image} className="w-16 h-16 object-cover rounded border"/>}
                                 <div>
-                                    <div className="text-2xl font-bold text-blue-600 mb-1">{recommendedCable.type}</div>
+                                    {/* CHANGED: Use description or type */}
+                                    <div className="text-2xl font-bold text-blue-600 mb-1">{recommendedCable.description || recommendedCable.type}</div>
                                     <div className="text-sm font-mono text-slate-500 bg-slate-100 p-1 rounded inline-block mb-2">KCID: {recommendedCable.kcid}</div>
                                 </div>
                             </div>
@@ -165,7 +166,8 @@ export default function Step4_Summary({ builder }) {
                                 <tr>
                                     <td className="p-3 font-mono text-blue-600">{recommendedCable.kcid}</td>
                                     <td className="p-3 font-medium">{recommendedCable.part}</td>
-                                    <td className="p-3 text-slate-600">{recommendedCable.type}</td>
+                                    {/* CHANGED: Use description or type */}
+                                    <td className="p-3 text-slate-600">{recommendedCable.description || recommendedCable.type}</td>
                                     <td className="p-3 text-right font-bold">{liftHeight ? parseInt(liftHeight) + 5 : 'AR'} ft</td>
                                 </tr>
                             )}

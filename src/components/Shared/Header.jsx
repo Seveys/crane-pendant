@@ -1,16 +1,17 @@
 import React from 'react';
 import { Box, ChevronLeft, Save, Settings, User, LogOut } from 'lucide-react';
-import SearchBar from '../Search/SearchBar'; // Ensure path is correct
+import SearchBar from '../Search/SearchBar'; 
 
 export default function Header({ 
     user, 
+    isAdmin, // <--- New Prop
     step, 
     setStep, 
     onAdminClick, 
     onSaveClick, 
     onAuthClick, 
     onLogout,
-    // Search Props passed from parent
+    // Search Props
     searchQuery, setSearchQuery, onSearch, onSelectResult, allSearchableItems 
 }) {
     return (
@@ -37,7 +38,7 @@ export default function Header({
 
                 {/* NAVIGATION ACTIONS */}
                 <div className="flex gap-3 items-center">
-                    {/* Back Button (Only if past step 1) */}
+                    {/* Back Button */}
                     {step > 1 && (
                         <button 
                             onClick={() => setStep(step - 1)} 
@@ -57,21 +58,23 @@ export default function Header({
                         </button>
                     )}
 
-                    {/* Admin Toggle */}
-                    <button 
-                        onClick={onAdminClick} 
-                        className="px-3 py-2 rounded border border-slate-700 hover:bg-slate-800 text-slate-400 text-xs flex items-center gap-1"
-                    >
-                        <Settings size={14} /> Admin
-                    </button>
+                    {/* Admin Toggle - ONLY FOR ADMINS */}
+                    {isAdmin && (
+                        <button 
+                            onClick={onAdminClick} 
+                            className="px-3 py-2 rounded border border-slate-700 hover:bg-slate-800 text-slate-400 text-xs flex items-center gap-1"
+                        >
+                            <Settings size={14} /> Admin
+                        </button>
+                    )}
                     
                     {/* User Profile / Auth */}
                     <div className="ml-4 pl-4 border-l border-slate-700">
-                        {user && !user.isAnonymous ? (
+                        {user ? (
                             <div className="flex items-center gap-3">
                                 <div className="text-right hidden md:block">
-                                    <div className="text-xs font-bold text-white">{user.displayName || 'User'}</div>
-                                    <div className="text-[10px] text-slate-400">Online</div>
+                                    <div className="text-xs font-bold text-white">{user.displayName || user.email}</div>
+                                    <div className="text-[10px] text-slate-400">{isAdmin ? 'Administrator' : 'User'}</div>
                                 </div>
                                 <button 
                                     onClick={onLogout} 
