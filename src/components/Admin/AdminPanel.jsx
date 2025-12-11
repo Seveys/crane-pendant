@@ -20,17 +20,14 @@ export default function AdminPanel(props) {
     const [selectedSeriesAdmin, setSelectedSeriesAdmin] = useState(null);
     const [adminSubTab, setAdminSubTab] = useState('enclosures');
     
-    // Edit Mode State
     const [isEditing, setIsEditing] = useState(false);
     const [editItem, setEditItem] = useState(null);
-    const [tempImage, setTempImage] = useState(null);
-    const [tempDocs, setTempDocs] = useState([]);
 
+    // --- RESET STATE ---
     const resetEditState = () => {
         setIsEditing(false);
         setEditItem(null);
-        setTempImage(null);
-        setTempDocs([]);
+        // Note: tempImage and tempDocs are now handled inside the form components
     };
 
     const handleGlobalNav = (tab) => {
@@ -48,7 +45,7 @@ export default function AdminPanel(props) {
         resetEditState();
     };
 
-    // --- NEW: GENERIC DELETE HANDLER ---
+    // --- DELETE HANDLER ---
     const handleDelete = async (item) => {
         if (!window.confirm(`Are you sure you want to delete "${item.name || item.model || item.part || item.id}"? This cannot be undone.`)) {
             return;
@@ -56,20 +53,16 @@ export default function AdminPanel(props) {
 
         try {
             if (globalTab === 'cables') {
-                await dbActions.deleteCable(item.part); // Cables use part # as ID
+                await dbActions.deleteCable(item.part);
             } else if (globalTab === 'accessories') {
                 await dbActions.deleteAccessory(item.id);
             } else if (adminSubTab === 'components') {
                 await dbActions.deleteComponent(item.id);
             } else if (adminSubTab === 'enclosures' && selectedManufacturerAdmin) {
-                // Special case for nested enclosures
                 await dbActions.deleteEnclosure(selectedManufacturerAdmin, item.id);
             } else if (!globalTab && selectedManufacturerAdmin && !selectedSeriesAdmin) {
-                // Delete Manufacturer (Wait, this is usually triggered from a list, but current UI is sidebar. 
-                // We'll likely need a button on the Edit form or a list view. 
-                // For now, let's assume this is called if we had a manufacturer list view, or we add a delete button to the edit form).
                 await dbActions.deleteManufacturer(item.id);
-                setSelectedManufacturerAdmin(null); // Deselect after delete
+                setSelectedManufacturerAdmin(null);
                 resetEditState();
             }
         } catch (e) {
@@ -85,7 +78,6 @@ export default function AdminPanel(props) {
         <div className="w-64 bg-slate-900 text-slate-300 flex flex-col h-full border-r border-slate-800">
             <div className="p-4 border-b border-slate-800 font-bold text-white flex justify-between items-center">
                 <span className="flex items-center gap-2"><Database size={18} /> Library</span>
-                
                 <button 
                     onClick={() => { 
                         setSelectedManufacturerAdmin(null); 
@@ -185,14 +177,13 @@ export default function AdminPanel(props) {
                             </h2>
                         </div>
                         <div className="flex gap-2">
-                            {/* EDIT MANUFACTURER BUTTON */}
                             {selectedManufacturerAdmin && !selectedSeriesAdmin && !isEditing && (
                                 <button 
                                     onClick={() => {
                                         const mfg = manufacturers.find(m => m.id === selectedManufacturerAdmin);
                                         if (mfg) {
                                             setEditItem(mfg);
-                                            setTempImage(mfg.image);
+                                            // setTempImage... removed (handled in form now)
                                             setAdminSubTab(null);
                                             setIsEditing(true);
                                         }
@@ -225,16 +216,16 @@ export default function AdminPanel(props) {
                         <AdminForms 
                             {...props} 
                             dbActions={dbActions} 
-                            globalTab={globalTab} selectedManufacturerAdmin={selectedManufacturerAdmin} selectedSeriesAdmin={selectedSeriesAdmin} adminSubTab={adminSubTab} editItem={editItem} tempImage={tempImage} tempDocs={tempDocs} setTempImage={setTempImage} setTempDocs={setTempDocs} onCancel={resetEditState} onSaveSuccess={resetEditState} 
-                            // NEW: Pass delete handler to form for manufacturers
+                            globalTab={globalTab} selectedManufacturerAdmin={selectedManufacturerAdmin} selectedSeriesAdmin={selectedSeriesAdmin} adminSubTab={adminSubTab} editItem={editItem} 
+                            onCancel={resetEditState} 
+                            onSaveSuccess={resetEditState} 
                             onDelete={() => handleDelete(editItem)}
                         />
                     ) : (
                         <AdminViews 
                             {...props} 
                             globalTab={globalTab} selectedManufacturerAdmin={selectedManufacturerAdmin} selectedSeriesAdmin={selectedSeriesAdmin} adminSubTab={adminSubTab} 
-                            onEdit={(item) => { setEditItem(item); setTempImage(item.image || null); setTempDocs(item.docs || []); setIsEditing(true); }} 
-                            // NEW: Pass delete handler to list views
+                            onEdit={(item) => { setEditItem(item); setIsEditing(true); }} 
                             onDelete={handleDelete}
                         />
                     )}
