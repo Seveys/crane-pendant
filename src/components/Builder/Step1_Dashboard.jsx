@@ -15,13 +15,16 @@ export default function Step1_Dashboard({ builder, popularConfigs = [], myBuilds
     const allEnclosuresFlat = useMemo(() => {
         const all = [];
         Object.keys(seriesData).forEach(mfgId => {
-            const mfgData = seriesData[mfgId];
-            const mfgName = manufacturers.find(m => m.id === mfgId)?.name || mfgId;
-            const mfgImage = manufacturers.find(m => m.id === mfgId)?.image;
-            if(mfgData.isActive) {
-                mfgData.enclosures.forEach(enc => {
-                    all.push({ ...enc, manufacturerId: mfgId, manufacturerName: mfgName, manufacturerImage: mfgImage });
-                });
+            // Find manufacturer to check if active
+            const manufacturer = manufacturers.find(m => m.id === mfgId);
+            // Only include if manufacturer exists AND is active
+            if (manufacturer && manufacturer.isActive) {
+                const mfgData = seriesData[mfgId];
+                if(mfgData) {
+                    mfgData.enclosures.forEach(enc => {
+                        all.push({ ...enc, manufacturerId: mfgId, manufacturerName: manufacturer.name, manufacturerImage: manufacturer.image });
+                    });
+                }
             }
         });
         return all;
@@ -58,7 +61,8 @@ export default function Step1_Dashboard({ builder, popularConfigs = [], myBuilds
 
                 {browseMode === 'brand' ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {manufacturers.filter(m => seriesData[m.id]?.isActive).map((m) => (
+                        {/* UPDATED: FILTER BY m.isActive */}
+                        {manufacturers.filter(m => m.isActive).map((m) => (
                             <button key={m.id} onClick={() => handleStartBuild(m.id)} className="flex flex-col items-center justify-center p-6 border rounded-xl hover:border-blue-500 hover:shadow-lg transition-all bg-white group overflow-hidden relative h-32">
                                 {m.image ? 
                                     <img src={m.image} className="w-full h-16 object-contain mb-2" alt={m.name} /> : 

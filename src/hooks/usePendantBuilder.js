@@ -1,12 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { 
-  collection, addDoc, onSnapshot, serverTimestamp 
-} from 'firebase/firestore';
-import { useCatalogData } from './useCatalogData'; // Import the new hook
+import { collection, addDoc, onSnapshot, serverTimestamp, writeBatch, doc } from 'firebase/firestore';
+import { useCatalogData } from './useCatalogData';
+import { INITIAL_MANUFACTURERS, INITIAL_COMPONENTS, INITIAL_CABLES, INITIAL_ACCESSORIES, INITIAL_CORD_GRIPS, INITIAL_SERIES_DATA } from '../data/initialData';
 
 export function usePendantBuilder(user, db, appId = 'default-app-id') {
   // --- 1. GET CATALOG DATA ---
-  // Use the new hook that connects to Firebase
   const catalog = useCatalogData(db, appId);
 
   // --- 2. BUILDER UI STATE ---
@@ -40,7 +38,7 @@ export function usePendantBuilder(user, db, appId = 'default-app-id') {
     }
   }, [enclosure]);
 
-  // --- 3. FIREBASE SYNCHRONIZATION (Builds Only) ---
+  // --- 3. FIREBASE SYNCHRONIZATION ---
   useEffect(() => {
     if (!user || !db) return; 
 
@@ -48,14 +46,12 @@ export function usePendantBuilder(user, db, appId = 'default-app-id') {
     const unsubPublic = onSnapshot(qPublic, (snapshot) => {
         const builds = []; 
         snapshot.forEach(doc => builds.push(doc.data()));
-        
         const counts = {};
         builds.forEach(build => {
             const sig = build.signature; 
             if (!counts[sig]) counts[sig] = { count: 0, data: build };
             counts[sig].count++;
         });
-        
         setPopularConfigs(Object.values(counts).sort((a, b) => b.count - a.count).slice(0, 5).map(c => c.data));
     }, (e) => console.log("Analytics skipped"));
 
@@ -72,28 +68,23 @@ export function usePendantBuilder(user, db, appId = 'default-app-id') {
   // --- 4. CALCULATIONS ---
   const wiring = useMemo(() => {
     let signalWires = 0; let commonWire = 1; let groundWire = 1; 
-    
     const processComp = (compId) => {
         const comp = catalog.componentTypes.find(c => c.id === compId);
         if (comp) {
             const cId = (comp.id || '').toLowerCase();
             const cPart = (comp.partNumber || '');
             const cCat = (comp.category || '').toLowerCase();
-
             const isMotion = cId.includes('motion');
             const isSet = cPart.includes('SET');
             const isEstop = cId === 'estop' || cCat === 'estop';
-
             if (isMotion || isSet) signalWires += (comp.wires - 1); 
             else if (isEstop) signalWires += 2; 
             else if (comp.wires > 0) signalWires += comp.wires;
         }
     };
-
     slots.forEach(slot => processComp(slot.componentId));
     if (extraSlots.large) processComp(extraSlots.large);
     if (extraSlots.small) processComp(extraSlots.small);
-
     return { signalWires, commonWire, groundWire, totalConductors: signalWires + commonWire + groundWire };
   }, [slots, extraSlots, catalog.componentTypes]);
 
@@ -115,13 +106,11 @@ export function usePendantBuilder(user, db, appId = 'default-app-id') {
     const activeOD = customCableOD 
         ? parseFloat(customCableOD) 
         : (activeCable ? (activeCable.od || activeCable.od_max) : 0);
-    
     if (!activeOD || !enclosure) return { grip: null, odValidation: null, activeOD: activeOD };
 
     let odValidation = 'ok';
     const encMin = enclosure.accepted_od_min;
     const encMax = enclosure.accepted_od_max;
-
     if (encMin && activeOD < encMin) odValidation = 'too_small';
     else if (encMax && activeOD > encMax) odValidation = 'too_large';
 
@@ -164,7 +153,6 @@ export function usePendantBuilder(user, db, appId = 'default-app-id') {
     const comp = catalog.componentTypes.find(c => c.id === componentId);
     if (!comp && componentId !== 'empty') return;
     const newSlots = [...slots];
-    
     if (componentId !== 'empty' && comp.holes > 1) {
         if (index + comp.holes > newSlots.length) { alert(`Cannot place ${comp.name} here. Not enough space.`); return; }
         for (let i = 1; i < comp.holes; i++) {
@@ -173,7 +161,6 @@ export function usePendantBuilder(user, db, appId = 'default-app-id') {
             }
         }
     }
-
     if (newSlots[index].componentId !== 'empty' && newSlots[index].componentId !== 'linked') {
         const oldComp = catalog.componentTypes.find(c => c.id === newSlots[index].componentId);
         if (oldComp?.holes > 1) {
@@ -184,22 +171,6 @@ export function usePendantBuilder(user, db, appId = 'default-app-id') {
             }
         }
     }
-
-    if (componentId === 'empty' && newSlots[index].componentId === 'linked') {
-        let anchorIndex = newSlots[index].linkedTo;
-        if (anchorIndex !== null && newSlots[anchorIndex]) {
-            newSlots[anchorIndex] = { ...newSlots[anchorIndex], componentId: 'empty' };
-            const anchorComp = catalog.componentTypes.find(c => c.id === newSlots[anchorIndex].componentId);
-            if (anchorComp?.holes > 1) {
-                for(let i=1; i < anchorComp.holes; i++) {
-                    if (anchorIndex + i < newSlots.length) {
-                        newSlots[anchorIndex + i] = { ...newSlots[anchorIndex + i], componentId: 'empty', linkedTo: null };
-                    }
-                }
-            }
-        }
-    }
-    
     newSlots[index] = { ...newSlots[index], componentId: componentId, linkedTo: null };
     if (componentId !== 'empty' && comp.holes > 1) {
         for(let i=1; i < comp.holes; i++) {
@@ -253,6 +224,27 @@ export function usePendantBuilder(user, db, appId = 'default-app-id') {
       return true;
   };
 
+  const seedDatabase = async () => {
+      if (!db) { alert("Database not connected."); return; }
+      if (!confirm("⚠️ This will write default data to your Firebase Database. Any existing data with the same IDs will be overwritten. Continue?")) return;
+      
+      console.log("Starting Seed...");
+      try {
+          const batch = writeBatch(db);
+          INITIAL_MANUFACTURERS.forEach(m => batch.set(doc(db, 'artifacts', appId, 'manufacturers', m.id), m));
+          INITIAL_COMPONENTS.forEach(c => batch.set(doc(db, 'artifacts', appId, 'components', c.id), c));
+          INITIAL_CABLES.forEach(c => batch.set(doc(db, 'artifacts', appId, 'cables', c.kcid), c));
+          INITIAL_ACCESSORIES.forEach(a => batch.set(doc(db, 'artifacts', appId, 'accessories', a.id), a));
+          INITIAL_CORD_GRIPS.forEach(g => batch.set(doc(db, 'artifacts', appId, 'cord_grips', g.id), g));
+          Object.entries(INITIAL_SERIES_DATA).forEach(([key, data]) => batch.set(doc(db, 'artifacts', appId, 'series_data', key), data));
+          await batch.commit();
+          alert("✅ Database seeded successfully!");
+      } catch (e) {
+          console.error("Seed failed:", e);
+          alert("Error seeding database: " + e.message);
+      }
+  };
+
   return {
     ...catalog, 
     step, setStep, activeManufacturer, setActiveManufacturer, enclosure, setEnclosure, slots, setSlots,
@@ -267,6 +259,7 @@ export function usePendantBuilder(user, db, appId = 'default-app-id') {
     activeCableOD: recommendedGrip.activeOD,
     matchedPreconfig,
     updateSlot, loadConfig, saveConfig,
-    extraSlots, updateExtraSlot
+    extraSlots, updateExtraSlot,
+    seedDatabase 
   };
 }
