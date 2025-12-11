@@ -1,24 +1,27 @@
 import { useState, useEffect, useMemo } from 'react';
-import { collection, addDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
-import { useCatalogData } from './useCatalogData'; 
+import { 
+  collection, addDoc, onSnapshot, serverTimestamp 
+} from 'firebase/firestore';
+import { useCatalogData } from './useCatalogData'; // Import the new hook
 
 export function usePendantBuilder(user, db, appId = 'default-app-id') {
-  // 1. GET CATALOG DATA
+  // --- 1. GET CATALOG DATA ---
+  // Use the new hook that connects to Firebase
   const catalog = useCatalogData(db, appId);
 
-  // 2. BUILDER UI STATE
+  // --- 2. BUILDER UI STATE ---
   const [step, setStep] = useState(1);
   const [activeManufacturer, setActiveManufacturer] = useState(null);
   const [enclosure, setEnclosure] = useState(null);
   const [slots, setSlots] = useState([]); 
-  // NEW: State for housing accessories (Series 80 specific)
   const [extraSlots, setExtraSlots] = useState({ large: null, small: null });
-  
+
   const [selectedAccessories, setSelectedAccessories] = useState([]);
   const [liftHeight, setLiftHeight] = useState('');
   const [customCableOD, setCustomCableOD] = useState('');
   const [userSelectedCable, setUserSelectedCable] = useState(null); 
   const [myBuilds, setMyBuilds] = useState([]);
+  const [popularConfigs, setPopularConfigs] = useState([]);
 
   // --- SLOT INITIALIZATION ---
   useEffect(() => {
@@ -30,7 +33,6 @@ export function usePendantBuilder(user, db, appId = 'default-app-id') {
                 componentId: 'empty' 
             }));
         });
-        // Reset extra slots on enclosure change
         setExtraSlots({ large: null, small: null });
     } else {
         setSlots([]);
@@ -38,23 +40,39 @@ export function usePendantBuilder(user, db, appId = 'default-app-id') {
     }
   }, [enclosure]);
 
-  // 3. USER BUILDS LISTENER
+  // --- 3. FIREBASE SYNCHRONIZATION (Builds Only) ---
   useEffect(() => {
-    if (user && db) {
-        const unsub = onSnapshot(collection(db, 'artifacts', appId, 'users', user.uid, 'pendant_builds'), (snapshot) => {
-            const builds = [];
-            snapshot.forEach(doc => builds.push({ ...doc.data(), id: doc.id }));
-            setMyBuilds(builds.sort((x,y) => (y.timestamp?.seconds || 0) - (x.timestamp?.seconds || 0)));
-        }, (e) => console.log("User history offline"));
-        return () => unsub();
-    }
+    if (!user || !db) return; 
+
+    const qPublic = collection(db, 'artifacts', appId, 'public', 'data', 'pendant_builds');
+    const unsubPublic = onSnapshot(qPublic, (snapshot) => {
+        const builds = []; 
+        snapshot.forEach(doc => builds.push(doc.data()));
+        
+        const counts = {};
+        builds.forEach(build => {
+            const sig = build.signature; 
+            if (!counts[sig]) counts[sig] = { count: 0, data: build };
+            counts[sig].count++;
+        });
+        
+        setPopularConfigs(Object.values(counts).sort((a, b) => b.count - a.count).slice(0, 5).map(c => c.data));
+    }, (e) => console.log("Analytics skipped"));
+
+    const qUser = collection(db, 'artifacts', appId, 'users', user.uid, 'pendant_builds');
+    const unsubUser = onSnapshot(qUser, (snapshot) => {
+        const builds = [];
+        snapshot.forEach(doc => builds.push({ ...doc.data(), id: doc.id }));
+        setMyBuilds(builds.sort((x,y) => (y.timestamp?.seconds || 0) - (x.timestamp?.seconds || 0)));
+    }, (e) => console.log("User history skipped"));
+
+    return () => { unsubPublic(); unsubUser(); };
   }, [user, db, appId]);
 
-  // 4. CALCULATIONS (Updated to include Extra Slots)
+  // --- 4. CALCULATIONS ---
   const wiring = useMemo(() => {
     let signalWires = 0; let commonWire = 1; let groundWire = 1; 
     
-    // Helper to process a component ID
     const processComp = (compId) => {
         const comp = catalog.componentTypes.find(c => c.id === compId);
         if (comp) {
@@ -72,17 +90,13 @@ export function usePendantBuilder(user, db, appId = 'default-app-id') {
         }
     };
 
-    // Process Standard Slots
     slots.forEach(slot => processComp(slot.componentId));
-    
-    // Process Extra Slots
     if (extraSlots.large) processComp(extraSlots.large);
     if (extraSlots.small) processComp(extraSlots.small);
 
     return { signalWires, commonWire, groundWire, totalConductors: signalWires + commonWire + groundWire };
   }, [slots, extraSlots, catalog.componentTypes]);
 
-  // --- CALCULATED IDEAL CABLE ---
   const calculatedRecommendedCable = useMemo(() => {
     if (wiring.totalConductors === 0 || !enclosure) return null;
     const requiredConductors = wiring.totalConductors + 1;
@@ -93,12 +107,10 @@ export function usePendantBuilder(user, db, appId = 'default-app-id') {
     return validCables.sort((a, b) => a.conductors - b.conductors)[0] || null;
   }, [wiring, catalog.cables, enclosure]);
 
-  // --- ACTIVE CABLE SELECTION ---
   const activeCable = useMemo(() => {
       return userSelectedCable || calculatedRecommendedCable;
   }, [userSelectedCable, calculatedRecommendedCable]);
 
-  // --- CORD GRIP LOGIC ---
   const recommendedGrip = useMemo(() => {
     const activeOD = customCableOD 
         ? parseFloat(customCableOD) 
@@ -118,19 +130,18 @@ export function usePendantBuilder(user, db, appId = 'default-app-id') {
     );
 
     let grip = null;
-    if (isQuickConnectSelected) {
-        const qcGrips = catalog.cordGrips
-            .filter(g => g && g.part && g.part.toLowerCase().includes('qc') && g.compatibleSeries?.includes(enclosure.series))
-            .sort((a, b) => a.od_min - b.od_min);
-        grip = qcGrips.find(g => activeOD >= g.od_min && activeOD <= g.od_max);
-    } else {
-        const standardGrips = catalog.cordGrips
-            .filter(g => g && g.part && !g.part.toLowerCase().includes('qc') && g.compatibleSeries?.includes(enclosure.series))
-            .sort((a, b) => a.od_min - b.od_min);
-        grip = standardGrips.find(g => activeOD >= g.od_min && activeOD <= g.od_max);
+    const fitsNatively = (encMin && encMax && activeOD >= encMin && activeOD <= encMax);
+    const needGrip = !fitsNatively || isQuickConnectSelected;
+
+    if (needGrip) {
+        const gripsToSearch = catalog.cordGrips.filter(g => 
+            (!g.compatibleSeries || g.compatibleSeries.includes(enclosure.series)) &&
+            (isQuickConnectSelected ? (g.part && g.part.toLowerCase().includes('qc')) : (!g.part || !g.part.toLowerCase().includes('qc')))
+        ).sort((a, b) => a.od_min - b.od_min);
+        grip = gripsToSearch.find(g => activeOD >= g.od_min && activeOD <= g.od_max);
     }
     
-    return { grip: grip, odValidation: odValidation, activeOD: activeOD };
+    return { grip: grip, odValidation: odValidation, activeOD: activeOD, isRequired: needGrip };
   }, [activeCable, customCableOD, catalog.cordGrips, enclosure, selectedAccessories, catalog.accessories]);
 
   const activeSeriesData = useMemo(() => {
@@ -144,7 +155,6 @@ export function usePendantBuilder(user, db, appId = 'default-app-id') {
     return activeSeriesData.preconfigurations.find(pre => {
         if (pre.enclosureId !== enclosure.id) return false;
         if (pre.slots.length !== currentSlotIds.length) return false;
-        // Preconfigs typically don't account for custom extra slots yet, checking only main slots
         return pre.slots.every((sId, index) => sId === currentSlotIds[index]);
     });
   }, [enclosure, slots, activeSeriesData]);
@@ -199,7 +209,6 @@ export function usePendantBuilder(user, db, appId = 'default-app-id') {
     setSlots(newSlots);
   };
 
-  // --- NEW: Helper to update Extra Slots ---
   const updateExtraSlot = (type, componentId) => {
       setExtraSlots(prev => ({ ...prev, [type]: componentId }));
   };
@@ -216,10 +225,7 @@ export function usePendantBuilder(user, db, appId = 'default-app-id') {
               return { id: idx, componentId: sId };
           });
           setSlots(reconstructedSlots);
-          // Load extra slots if they exist in saved data
-          if (configData.extraSlots) {
-              setExtraSlots(configData.extraSlots);
-          }
+          if (configData.extraSlots) setExtraSlots(configData.extraSlots);
           setStep(3); 
       }
   };
@@ -234,7 +240,7 @@ export function usePendantBuilder(user, db, appId = 'default-app-id') {
           enclosureId: enclosure.id,
           enclosureModel: enclosure.model,
           slotIds: slots.map(s => s.componentId),
-          extraSlots: extraSlots, // Save the extra slots
+          extraSlots: extraSlots,
           signature: signature,
           timestamp: serverTimestamp(),
           created_by: user.uid,
@@ -251,15 +257,16 @@ export function usePendantBuilder(user, db, appId = 'default-app-id') {
     ...catalog, 
     step, setStep, activeManufacturer, setActiveManufacturer, enclosure, setEnclosure, slots, setSlots,
     selectedAccessories, setSelectedAccessories, liftHeight, setLiftHeight, customCableOD, setCustomCableOD,
-    myBuilds, wiring, 
+    myBuilds, popularConfigs, wiring, 
     recommendedCable: calculatedRecommendedCable, 
     activeCable: activeCable, 
     userSelectedCable, setUserSelectedCable, 
     recommendedGrip: recommendedGrip.grip, 
     odValidation: recommendedGrip.odValidation,
+    isGripRequired: recommendedGrip.isRequired,
     activeCableOD: recommendedGrip.activeOD,
     matchedPreconfig,
     updateSlot, loadConfig, saveConfig,
-    extraSlots, updateExtraSlot // Exported for UI
+    extraSlots, updateExtraSlot
   };
 }
