@@ -8,7 +8,7 @@ import {
 } from 'firebase/auth';
 import { 
   Lock, AlertTriangle, ChevronLeft, Loader2, User, 
-  Linkedin, Github, Globe, Link as LinkIcon // <--- Restored Icon Imports
+  Linkedin, Github, Globe, Link as LinkIcon 
 } from 'lucide-react';
 
 // --- IMPORTS ---
@@ -22,10 +22,8 @@ import { SaveModal } from './components/Shared/Modals';
 import Step1_Dashboard from './components/Builder/Step1_Dashboard';
 import Step2_Enclosures from './components/Builder/Step2_Enclosures';
 import Step3_Configurator from './components/Builder/Step3_Configurator';
-import Step4_Summary from './components/Builder/Step4_Summary';
-
-import SearchResults from './components/Search/SearchResults';
-import PartDetail from './components/Search/PartDetail';
+import Step4_CableSelection from './components/Builder/Step4_CableSelection'; // NEW STEP 4
+import Step5_Finalize from './components/Builder/Step5_Finalize';                 // NEW STEP 5
 
 // --- CONFIGURATION ---
 const ADMIN_EMAILS = [
@@ -38,7 +36,9 @@ export default function App() {
   // --- 1. APP STATE ---
   const [viewMode, setViewMode] = useState('builder'); 
   const [user, setUser] = useState(null);
-  const [authInitialized, setAuthInitialized] = useState(false);
+  
+  // FIX: Ensure authInitialized is declared via useState
+  const [authInitialized, setAuthInitialized] = useState(false); 
   
   // Login Form State
   const [loginMode, setLoginMode] = useState('login'); 
@@ -118,6 +118,7 @@ export default function App() {
 
   const handleSaveConfig = async (metaData) => {
       try {
+          // This calls the saveConfig function from usePendantBuilder
           await builder.saveConfig(metaData);
           setShowSaveModal(false);
           alert("Configuration Saved Successfully!");
@@ -251,7 +252,8 @@ export default function App() {
           ) : (
              <div className="bg-white shadow-2xl rounded-2xl overflow-hidden flex flex-col flex-1 min-h-[600px]">
                 <div className="w-full bg-slate-100 h-1.5">
-                    <div className="bg-blue-600 h-full transition-all duration-500 ease-in-out shadow-[0_0_10px_rgba(37,99,235,0.5)]" style={{ width: `${(builder.step / 4) * 100}%` }} />
+                    {/* Updated progress bar calculation for 5 steps */}
+                    <div className="bg-blue-600 h-full transition-all duration-500 ease-in-out shadow-[0_0_10px_rgba(37,99,235,0.5)]" style={{ width: `${(builder.step / 5) * 100}%` }} />
                 </div>
                 
                 <div className="flex-1 p-6 md:p-8 flex flex-col">
@@ -259,7 +261,8 @@ export default function App() {
                         {builder.step === 1 && <Step1_Dashboard builder={builder} popularConfigs={builder.popularConfigs} myBuilds={builder.myBuilds} onLoadConfig={builder.loadConfig} />}
                         {builder.step === 2 && <Step2_Enclosures builder={builder} />}
                         {builder.step === 3 && <Step3_Configurator builder={builder} />}
-                        {builder.step === 4 && <Step4_Summary builder={builder} />}
+                        {builder.step === 4 && <Step4_CableSelection builder={builder} />} 
+                        {builder.step === 5 && <Step5_Finalize builder={builder} />}
                     </div>
                 </div>
              </div>

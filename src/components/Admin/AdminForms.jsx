@@ -6,7 +6,8 @@ import EnclosureForm from './forms/EnclosureForm';
 import FooterForm from './forms/FooterForm';
 import SeriesForm from './forms/SeriesForm';
 import CordGripForm from './forms/CordGripForm';
-import PreconfigForm from './forms/PreconfigForm'; // <--- New Import
+import PreconfigForm from './forms/PreconfigForm';
+import AccessoryForm from './forms/AccessoryForm'; // <--- New Import
 
 export default function AdminForms(props) {
     const { 
@@ -39,6 +40,9 @@ export default function AdminForms(props) {
     if (globalTab === 'cordgrips') {
         return <CordGripForm {...props} />;
     }
+    if (globalTab === 'accessories') { // <--- Corrected Routing
+        return <AccessoryForm {...props} />;
+    }
 
     // --- SERIES ASSETS ---
     if (adminSubTab === 'components') {
@@ -48,9 +52,8 @@ export default function AdminForms(props) {
         return <EnclosureForm {...props} />;
     }
     
-    // 4. PRE-CONFIGURATIONS (NEW)
+    // 4. PRE-CONFIGURATIONS
     if (adminSubTab === 'preconfigs') {
-        // When adding or editing a preconfig
         return <PreconfigForm {...props} />;
     }
 
