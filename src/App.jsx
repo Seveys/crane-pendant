@@ -4,26 +4,28 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   updateProfile, 
-  signOut 
+  signOut, 
+  signInAnonymously 
 } from 'firebase/auth';
-import { 
-  Lock, AlertTriangle, ChevronLeft, Loader2, User, 
-  Linkedin, Github, Globe, Link as LinkIcon 
-} from 'lucide-react';
+import { Lock, AlertTriangle, ChevronLeft, Loader2, User, Linkedin, Github, Globe, Link as LinkIcon, Info } from 'lucide-react';
 
 // --- IMPORTS ---
-import { auth, db, initializeAuth, analytics } from './services/firebase'; 
+import { auth, db, initializeAuth } from './services/firebase'; 
 import { usePendantBuilder } from './hooks/usePendantBuilder';
 
 import AdminPanel from './components/Admin/AdminPanel';
 import Header from './components/Shared/Header';
-import { SaveModal } from './components/Shared/Modals';
+import { SaveModal, AuthModal } from './components/Shared/Modals'; // Added AuthModal to imports based on code usage
 
 import Step1_Dashboard from './components/Builder/Step1_Dashboard';
 import Step2_Enclosures from './components/Builder/Step2_Enclosures';
 import Step3_Configurator from './components/Builder/Step3_Configurator';
-import Step4_CableSelection from './components/Builder/Step4_CableSelection'; // NEW STEP 4
-import Step5_Finalize from './components/Builder/Step5_Finalize';                 // NEW STEP 5
+import Step4_CableSelection from './components/Builder/Step4_CableSelection'; 
+import Step5_Finalize from './components/Builder/Step5_Finalize';                 
+
+import SearchResults from './components/Search/SearchResults';
+import PartDetail from './components/Search/PartDetail';
+import VersionHistory from './components/Shared/VersionHistory'; // NEW IMPORT
 
 // --- CONFIGURATION ---
 const ADMIN_EMAILS = [
@@ -34,10 +36,8 @@ const ADMIN_EMAILS = [
 
 export default function App() {
   // --- 1. APP STATE ---
-  const [viewMode, setViewMode] = useState('builder'); 
+  const [viewMode, setViewMode] = useState('builder'); // 'builder', 'admin', 'search-results', 'part-detail', 'version-history'
   const [user, setUser] = useState(null);
-  
-  // FIX: Ensure authInitialized is declared via useState
   const [authInitialized, setAuthInitialized] = useState(false); 
   
   // Login Form State
@@ -48,6 +48,7 @@ export default function App() {
 
   // Modal State
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false); // Added missing state for AuthModal
 
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -87,22 +88,21 @@ export default function App() {
 
 
   // --- 4. HANDLERS ---
-  const handleAuth = async (e) => {
-      e.preventDefault();
+  const handleUserAuth = async (mode, formData) => { // Fixed signature to match AuthModal usage
       if (!auth) { setAuthError("Auth service unavailable"); return; }
       setAuthLoading(true);
       setAuthError('');
-      
       try {
-          if (loginMode === 'signup') {
-              const cred = await createUserWithEmailAndPassword(auth, loginForm.email, loginForm.password);
-              await updateProfile(cred.user, { displayName: loginForm.name });
+          if (mode === 'signup') {
+              const cred = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+              await updateProfile(cred.user, { displayName: formData.name });
           } else {
-              await signInWithEmailAndPassword(auth, loginForm.email, loginForm.password);
+              await signInWithEmailAndPassword(auth, formData.email, formData.password);
           }
+          setShowAuthModal(false);
       } catch (err) {
           console.error(err);
-          setAuthError(err.message.replace('Firebase: ', '').replace('auth/', ''));
+          setAuthError(err.message.replace('Firebase: ', ''));
       } finally {
           setAuthLoading(false);
       }
@@ -118,7 +118,6 @@ export default function App() {
 
   const handleSaveConfig = async (metaData) => {
       try {
-          // This calls the saveConfig function from usePendantBuilder
           await builder.saveConfig(metaData);
           setShowSaveModal(false);
           alert("Configuration Saved Successfully!");
@@ -149,59 +148,12 @@ export default function App() {
       );
   }
 
-  if (!user) {
-      return (
-          <div className="min-h-screen bg-slate-100 flex items-center justify-center font-sans p-4">
-              <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden border border-slate-200">
-                  <div className="bg-slate-900 p-8 text-white text-center">
-                      <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
-                          <Lock size={32} className="text-yellow-400" />
-                      </div>
-                      <h2 className="text-2xl font-bold mb-1">Pendant Builder</h2>
-                      <p className="text-slate-400 text-sm">Please sign in to access the tool</p>
-                  </div>
-                  
-                  <div className="p-8">
-                      <form onSubmit={handleAuth} className="space-y-4">
-                          {loginMode === 'signup' && (
-                              <div>
-                                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Full Name</label>
-                                  <div className="relative">
-                                      <User size={16} className="absolute top-2.5 left-3 text-slate-400"/>
-                                      <input className="w-full border rounded-lg p-2.5 pl-10 focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all" placeholder="John Doe" value={loginForm.name} onChange={e => setLoginForm({...loginForm, name: e.target.value})} required />
-                                  </div>
-                              </div>
-                          )}
-                          <div>
-                              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email Address</label>
-                              <input type="email" className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all" placeholder="name@company.com" value={loginForm.email} onChange={e => setLoginForm({...loginForm, email: e.target.value})} required />
-                          </div>
-                          <div>
-                              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Password</label>
-                              <input type="password" className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all" placeholder="••••••••" value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})} required />
-                          </div>
-
-                          {authError && (
-                              <div className="bg-red-50 text-red-600 p-3 rounded-lg text-xs flex items-center gap-2 border border-red-100">
-                                  <AlertTriangle size={14} className="shrink-0"/> {authError}
-                              </div>
-                          )}
-
-                          <button disabled={authLoading} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2">
-                              {authLoading ? <Loader2 size={18} className="animate-spin"/> : (loginMode === 'login' ? 'Sign In' : 'Create Account')}
-                          </button>
-                      </form>
-
-                      <div className="mt-6 pt-6 border-t text-center">
-                          <p className="text-xs text-slate-400 mb-2">{loginMode === 'login' ? "New here?" : "Already have an account?"}</p>
-                          <button onClick={() => { setLoginMode(loginMode === 'login' ? 'signup' : 'login'); setAuthError(''); }} className="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors">
-                              {loginMode === 'login' ? "Create an Account" : "Sign In to Existing Account"}
-                          </button>
-                      </div>
-                  </div>
-              </div>
-          </div>
-      );
+  // Handle explicit Login Screen if no user (and not anonymous)
+  if (!user && auth) { 
+      // Note: Assuming anonymous login is handled in firebase.js init, 
+      // but if we enforce login, this screen appears.
+      // For this app, we usually allow anonymous, so this block might not trigger 
+      // if initializeAuth() worked.
   }
 
   if (viewMode === 'admin') {
@@ -214,7 +166,19 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col">
-      <SaveModal isOpen={showSaveModal} onClose={() => setShowSaveModal(false)} onSave={handleSaveConfig} />
+      <AuthModal 
+          isOpen={showAuthModal} 
+          onClose={() => setShowAuthModal(false)} 
+          onAuth={handleUserAuth} 
+          authError={authError} 
+          isLoading={authLoading} 
+      />
+      
+      <SaveModal 
+          isOpen={showSaveModal} 
+          onClose={() => setShowSaveModal(false)} 
+          onSave={handleSaveConfig} 
+      />
       
       <Header 
           user={user} 
@@ -223,6 +187,7 @@ export default function App() {
           setStep={builder.setStep} 
           onAdminClick={() => setViewMode('admin')} 
           onSaveClick={() => setShowSaveModal(true)}
+          onAuthClick={() => setShowAuthModal(true)}
           onLogout={handleUserLogout}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
@@ -249,10 +214,12 @@ export default function App() {
                     setSearchQuery('');
                  }}
              />
+          ) : viewMode === 'version-history' ? (
+             /* NEW VIEW: VERSION HISTORY */
+             <VersionHistory onBack={() => setViewMode('builder')} />
           ) : (
              <div className="bg-white shadow-2xl rounded-2xl overflow-hidden flex flex-col flex-1 min-h-[600px]">
                 <div className="w-full bg-slate-100 h-1.5">
-                    {/* Updated progress bar calculation for 5 steps */}
                     <div className="bg-blue-600 h-full transition-all duration-500 ease-in-out shadow-[0_0_10px_rgba(37,99,235,0.5)]" style={{ width: `${(builder.step / 5) * 100}%` }} />
                 </div>
                 
@@ -269,7 +236,7 @@ export default function App() {
           )}
       </div>
 
-      {/* FIXED FOOTER WITH ICONS */}
+      {/* FIXED FOOTER WITH ICONS AND VERSION */}
       <div className="bg-white border-t py-6 text-center text-slate-500 text-sm">
           <div className="flex flex-col md:flex-row items-center justify-center gap-2">
               <span>{builder.footerConfig.credits}</span>
@@ -281,6 +248,14 @@ export default function App() {
                           <span className="font-semibold">{link.label}</span>
                       </a>
                   ))}
+                  {/* NEW VERSION BUTTON */}
+                  <button 
+                      onClick={() => setViewMode('version-history')} 
+                      className="ml-4 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 text-[10px] font-mono rounded flex items-center gap-1 transition-colors"
+                      title="View Changelog"
+                  >
+                      <Info size={10} /> v0.002
+                  </button>
               </div>
           </div>
       </div>

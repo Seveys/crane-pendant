@@ -14,18 +14,15 @@ const STYLES = {
     NEUTRAL_HOLE: { bg: 'bg-zinc-700', border: 'border-zinc-800', text: 'text-white' }
 };
 
-// Parts allowed in the LARGE accessory hole (Updated with hyphens)
+// Parts allowed in the LARGE accessory hole
 const LARGE_ACCESSORY_PARTS = [
-    'XA-36088', 
-    'XA-36081', 
-    'XA-34316', 
-    'XA34316', 
-    'XA-34312', 
-    'XA34312'
+    'XA-36088', 'XA-36081', 
+    'XA-34316', 'XA34316', 
+    'XA-34312', 'XA34312'
 ]; 
 
 // Parts that should display as RED in the large accessory hole
-const RED_PILOT_PARTS = ['XA-34316', 'XA-36081', 'XA-36088'];
+const RED_PILOT_PARTS = ['XA-34316', 'XA-36081', 'XA-36088', 'XA34316'];
 
 export default function Step3_Configurator({ builder }) {
     const { 
@@ -36,13 +33,13 @@ export default function Step3_Configurator({ builder }) {
     // --- LOCAL STATE FOR UI ---
     const [searchTerm, setSearchTerm] = useState('');
     
-    // All groups start collapsed
+    // Collapsed state management
     const [expandedGroups, setExpandedGroups] = useState({
+        'Housing Accessories': true, // Keep special accessories open if available
         'Emergency Stop': false,
         'Push Buttons': false,
         'Pilot Lights': false,
         'Switches': false,
-        'Housing Accessories': false,
         'Other': false
     });
 
@@ -209,8 +206,8 @@ export default function Step3_Configurator({ builder }) {
     // --- GROUPING LOGIC ---
     const groupedComponents = useMemo(() => {
         const groups = {
+            'Housing Accessories': [],
             'Emergency Stop': [],
-            'Housing Accessories': [], // Explicit group for Series 80 parts
             'Push Buttons': [],
             'Pilot Lights': [],
             'Switches': [],
@@ -227,23 +224,33 @@ export default function Step3_Configurator({ builder }) {
             const type = (c.type || '').toLowerCase();
             const part = (c.partNumber || '');
 
-            // Special Check for Housing Accessories
+            // 1. Housing Accessories (Highest Priority)
             if (LARGE_ACCESSORY_PARTS.includes(part)) {
                 groups['Housing Accessories'].push(c);
-            } else if (cat === 'estop' || cat.includes('emergency')) {
+            } 
+            // 2. Emergency Stops
+            else if (cat === 'estop' || cat.includes('emergency')) {
                 groups['Emergency Stop'].push(c);
-            } else if (type === 'light' || type === 'indicator') {
+            } 
+            // 3. Pilot Lights
+            else if (type === 'light' || type === 'indicator') {
                 groups['Pilot Lights'].push(c);
-            } else if (type === 'selector' || type === 'switch') {
+            } 
+            // 4. Switches / Selectors
+            else if (type === 'selector' || type === 'switch') {
                 groups['Switches'].push(c);
-            } else if (type === 'button') {
+            } 
+            // 5. Standard Push Buttons
+            else if (type === 'button') {
                 groups['Push Buttons'].push(c);
-            } else {
+            } 
+            // 6. Everything Else
+            else {
                 groups['Other'].push(c);
             }
         });
 
-        // Hide Housing Accessories group if not Series 80
+        // Remove Housing Accessories category if not Series 80
         if (!isSeries80) {
             delete groups['Housing Accessories'];
         }
@@ -338,7 +345,7 @@ export default function Step3_Configurator({ builder }) {
                     </div>
                 </div>
 
-                {/* 2. COMPONENT LIST */}
+                {/* 2. COMPONENT LIST (ACCORDION) */}
                 <div className="overflow-y-auto flex-1 border-b bg-white">
                     {Object.entries(groupedComponents).map(([groupName, components]) => {
                         if (components.length === 0) return null;
@@ -361,9 +368,8 @@ export default function Step3_Configurator({ builder }) {
 
                                 {/* Accordion Body */}
                                 {isExpanded && (
-                                    <div className="p-2 space-y-2 bg-white">
+                                    <div className="p-2 space-y-2 bg-white animate-in slide-in-from-top-2 duration-200">
                                         {components.map(comp => {
-                                            // Determine if this is a housing accessory or a standard component
                                             const isHousingAcc = LARGE_ACCESSORY_PARTS.includes(comp.partNumber);
 
                                             return (
