@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Upload, Loader2, ImageIcon } from 'lucide-react';
+import { toDecimalInches } from '../../../utils/units'; // <--- Import utility
 
 export default function EnclosureForm({ editItem, dbActions, selectedManufacturerAdmin, selectedSeriesAdmin, onCancel, onSaveSuccess }) {
     const [tempImage, setTempImage] = useState(editItem?.image || null);
@@ -41,8 +42,11 @@ export default function EnclosureForm({ editItem, dbActions, selectedManufacture
             holes: parseInt(formData.get('holes')), 
             depth: formData.get('depth'), 
             max_contact_depth: parseInt(formData.get('max_contact_depth')), 
-            accepted_od_min: parseFloat(formData.get('accepted_od_min')) || 0,
-            accepted_od_max: parseFloat(formData.get('accepted_od_max')) || 0,
+            
+            // --- UPDATED: Use converter for flexible inputs ---
+            accepted_od_min: toDecimalInches(formData.get('accepted_od_min')),
+            accepted_od_max: toDecimalInches(formData.get('accepted_od_max')),
+            
             supportedStrainRelief: supportedSR, 
             image: tempImage
         }; 
@@ -67,8 +71,18 @@ export default function EnclosureForm({ editItem, dbActions, selectedManufacture
                 <div><label className="text-xs font-bold">Holes</label><input name="holes" type="number" defaultValue={editItem?.holes || 2} className="w-full border p-2 rounded"/></div>
                 <div><label className="text-xs font-bold">Depth</label><input name="depth" defaultValue={editItem?.depth || 'Standard'} className="w-full border p-2 rounded"/></div>
                 
-                <div><label className="text-xs font-bold">OD Min</label><input name="accepted_od_min" type="number" step="0.001" defaultValue={editItem?.accepted_od_min} className="w-full border p-2 rounded"/></div>
-                <div><label className="text-xs font-bold">OD Max</label><input name="accepted_od_max" type="number" step="0.001" defaultValue={editItem?.accepted_od_max} className="w-full border p-2 rounded"/></div>
+                {/* --- UPDATED OD INPUTS --- */}
+                <div>
+                    <label className="text-xs font-bold">OD Min</label>
+                    <input name="accepted_od_min" type="text" defaultValue={editItem?.accepted_od_min} className="w-full border p-2 rounded" placeholder="e.g. 0.5 or 12mm"/>
+                </div>
+                <div>
+                    <label className="text-xs font-bold">OD Max</label>
+                    <input name="accepted_od_max" type="text" defaultValue={editItem?.accepted_od_max} className="w-full border p-2 rounded" placeholder="e.g. 1/2 or 0.5"/>
+                </div>
+                <div className="col-span-2 text-[10px] text-slate-400 -mt-2">
+                    * Supports decimals, fractions (1/2), or mm (12mm).
+                </div>
 
                 <div className="col-span-2">
                     <label className="text-xs font-bold">Strain Relief</label>

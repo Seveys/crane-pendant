@@ -20,6 +20,10 @@ export function usePendantBuilder(user, db, appId = 'default-app-id') {
   const [userSelectedCable, setUserSelectedCable] = useState(null); 
   const [myBuilds, setMyBuilds] = useState([]);
   const [popularConfigs, setPopularConfigs] = useState([]);
+  
+  // --- UPDATED: VOLTAGE FILTER STATE ---
+  const [filterVoltageType, setFilterVoltageType] = useState('all'); // 'all', 'AC', 'DC'
+  const [filterVoltage, setFilterVoltage] = useState(''); // '120', '24', etc.
 
   // --- SLOT INITIALIZATION ---
   useEffect(() => {
@@ -260,6 +264,9 @@ export function usePendantBuilder(user, db, appId = 'default-app-id') {
     matchedPreconfig,
     updateSlot, loadConfig, saveConfig,
     extraSlots, updateExtraSlot,
-    seedDatabase 
+    seedDatabase,
+    // EXPOSE FILTER STATE
+    filterVoltageType, setFilterVoltageType,
+    filterVoltage, setFilterVoltage
   };
 }

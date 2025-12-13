@@ -51,6 +51,19 @@ export default function AdminForms(props) {
             </div>
         );
     }
+    
+    // --- NEW: Add Series Flow (Reuses EnclosureForm but with specific context) ---
+    if (adminSubTab === 'series-new') {
+        return (
+            <div className="mb-6 bg-white p-6 border rounded-lg shadow-lg">
+                <div className="mb-4 pb-4 border-b">
+                    <h3 className="font-bold text-lg text-blue-600">Create New Series</h3>
+                    <p className="text-sm text-slate-500">To create a series, you must define its first Enclosure type.</p>
+                </div>
+                <EnclosureForm {...props} selectedSeriesAdmin={null} />
+            </div>
+        );
+    }
 
     if (adminSubTab === 'enclosures') {
         return (

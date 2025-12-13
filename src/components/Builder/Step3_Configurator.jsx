@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { 
   ArrowUp, ArrowDown, ArrowLeft, ArrowRight, 
-  Power, AlertOctagon, Disc, X, Plus, ChevronRight, Zap, Search, ChevronDown, ChevronUp
+  Power, AlertOctagon, Disc, X, Plus, ChevronRight, Zap, Search, ChevronDown, ChevronUp, Filter
 } from 'lucide-react';
 
 const STYLES = {
@@ -14,28 +14,26 @@ const STYLES = {
     NEUTRAL_HOLE: { bg: 'bg-zinc-700', border: 'border-zinc-800', text: 'text-white' }
 };
 
-// Parts allowed in the LARGE accessory hole
 const LARGE_ACCESSORY_PARTS = [
     'XA-36088', 'XA-36081', 
     'XA-34316', 'XA34316', 
     'XA-34312', 'XA34312'
 ]; 
-
-// Parts that should display as RED in the large accessory hole
 const RED_PILOT_PARTS = ['XA-34316', 'XA-36081', 'XA-36088', 'XA34316'];
 
 export default function Step3_Configurator({ builder }) {
     const { 
         enclosure, slots, componentTypes, activeManufacturer, 
-        updateSlot, setStep, extraSlots, updateExtraSlot 
+        updateSlot, setStep, extraSlots, updateExtraSlot,
+        // New Filters
+        filterVoltageType, setFilterVoltageType,
+        filterVoltage, setFilterVoltage
     } = builder;
 
-    // --- LOCAL STATE FOR UI ---
+    // --- LOCAL STATE ---
     const [searchTerm, setSearchTerm] = useState('');
-    
-    // Collapsed state management
     const [expandedGroups, setExpandedGroups] = useState({
-        'Housing Accessories': true, // Keep special accessories open if available
+        'Housing Accessories': true,
         'Emergency Stop': false,
         'Push Buttons': false,
         'Pilot Lights': false,
@@ -47,7 +45,6 @@ export default function Step3_Configurator({ builder }) {
     const GAP_SIZE = 24;  
     const SLOT_HEIGHT = HOLE_SIZE + GAP_SIZE;
 
-    // Series 80 Check
     const isSeries80 = (
         ((activeManufacturer || '').toLowerCase().includes('conductix') || (enclosure?.series || '').includes('80')) &&
         (enclosure?.holes >= 6)
@@ -58,6 +55,7 @@ export default function Step3_Configurator({ builder }) {
         return !slots.some(slot => slot.componentId === 'empty');
     }, [slots]);
 
+    // ... (Helper functions: getComponentStyle, getComponentIcon, getMultiHoleStyle, renderVisualSlot, renderExtraSlot remain the same) ...
     // --- HELPER: Get Component Style ---
     const getComponentStyle = (comp) => {
         if (!comp) return { ...STYLES.BLACK, class: 'bg-zinc-800 border-zinc-600 text-white', iconColor: 'text-white' }; 
@@ -203,7 +201,7 @@ export default function Step3_Configurator({ builder }) {
         );
     }, [componentTypes, activeManufacturer, enclosure]);
 
-    // --- GROUPING LOGIC ---
+    // --- GROUPING & FILTERING LOGIC ---
     const groupedComponents = useMemo(() => {
         const groups = {
             'Housing Accessories': [],
@@ -214,49 +212,54 @@ export default function Step3_Configurator({ builder }) {
             'Other': []
         };
 
-        const filtered = availableComponents.filter(c => 
-            c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-            c.partNumber.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+        const filtered = availableComponents.filter(c => {
+            // Text Search
+            const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                  c.partNumber.toLowerCase().includes(searchTerm.toLowerCase());
+            
+            // Voltage Filter
+            let matchesVoltage = true;
+            if (filterVoltageType !== 'all') {
+                // If the component has no specific type (universal), it matches everything
+                // Otherwise, it must match the selected type
+                if (c.voltageType && c.voltageType !== 'universal' && c.voltageType !== filterVoltageType) {
+                    matchesVoltage = false;
+                }
+            }
+            
+            let matchesAmount = true;
+            if (filterVoltage && c.voltage) {
+                // Exact string match for now (e.g. '120' == '120')
+                if (c.voltage !== filterVoltage) matchesAmount = false;
+            }
+
+            return matchesSearch && matchesVoltage && matchesAmount;
+        });
 
         filtered.forEach(c => {
             const cat = (c.category || '').toLowerCase();
             const type = (c.type || '').toLowerCase();
             const part = (c.partNumber || '');
 
-            // 1. Housing Accessories (Highest Priority)
             if (LARGE_ACCESSORY_PARTS.includes(part)) {
                 groups['Housing Accessories'].push(c);
-            } 
-            // 2. Emergency Stops
-            else if (cat === 'estop' || cat.includes('emergency')) {
+            } else if (cat === 'estop' || cat.includes('emergency')) {
                 groups['Emergency Stop'].push(c);
-            } 
-            // 3. Pilot Lights
-            else if (type === 'light' || type === 'indicator') {
+            } else if (type === 'light' || type === 'indicator') {
                 groups['Pilot Lights'].push(c);
-            } 
-            // 4. Switches / Selectors
-            else if (type === 'selector' || type === 'switch') {
+            } else if (type === 'selector' || type === 'switch') {
                 groups['Switches'].push(c);
-            } 
-            // 5. Standard Push Buttons
-            else if (type === 'button') {
+            } else if (type === 'button') {
                 groups['Push Buttons'].push(c);
-            } 
-            // 6. Everything Else
-            else {
+            } else {
                 groups['Other'].push(c);
             }
         });
 
-        // Remove Housing Accessories category if not Series 80
-        if (!isSeries80) {
-            delete groups['Housing Accessories'];
-        }
+        if (!isSeries80) delete groups['Housing Accessories'];
 
         return groups;
-    }, [availableComponents, searchTerm, isSeries80]);
+    }, [availableComponents, searchTerm, isSeries80, filterVoltageType, filterVoltage]);
 
     // Auto-expand groups when searching
     useEffect(() => {
@@ -293,7 +296,6 @@ export default function Step3_Configurator({ builder }) {
                         className="bg-yellow-400 rounded-2xl shadow-2xl border-2 border-yellow-500 relative z-10 p-4 pt-12 flex flex-col gap-6 items-center" 
                         style={{ minWidth: '160px', minHeight: `${housingMinHeight}px` }}
                     >
-                        {/* Series 80 Accessories */}
                         {isSeries80 && (
                             <div className="absolute top-4 left-4 flex flex-col gap-2 items-center">
                                 {renderExtraSlot('small', 28)}
@@ -301,12 +303,10 @@ export default function Step3_Configurator({ builder }) {
                             </div>
                         )}
                         
-                        {/* Series 80 Spacer */}
                         {isSeries80 && (
                             <div style={{ height: `${SLOT_HEIGHT}px`, width: '100%', flexShrink: 0 }} />
                         )}
                         
-                        {/* Standard Slots */}
                         {slots.map((slot, idx) => (
                             <div key={slot.id} className="relative group flex flex-col items-center justify-center"
                                 style={{ height: `${HOLE_SIZE}px`, width: `${HOLE_SIZE}px` }}>
@@ -327,12 +327,41 @@ export default function Step3_Configurator({ builder }) {
             {/* RIGHT: COMPONENT SELECTOR */}
             <div className="w-full lg:w-96 flex flex-col bg-white border-l h-full max-h-[800px]">
                 
-                {/* 1. SEARCH BAR */}
+                {/* 1. FILTER BAR */}
                 <div className="p-4 border-b bg-slate-50 flex flex-col gap-3">
                     <div>
                         <h3 className="font-bold text-slate-800">Select Components</h3>
                         <p className="text-xs text-slate-500">Click a component below to fill the next empty slot.</p>
                     </div>
+                    
+                    {/* Voltage Filters */}
+                    <div className="flex gap-2">
+                        <div className="flex-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Voltage Type</label>
+                            <select 
+                                value={filterVoltageType} 
+                                onChange={(e) => setFilterVoltageType(e.target.value)}
+                                className="w-full text-xs border rounded p-1.5 bg-white"
+                            >
+                                <option value="all">Any Type</option>
+                                <option value="AC">AC Only</option>
+                                <option value="DC">DC Only</option>
+                                <option value="AC/DC">AC/DC</option>
+                            </select>
+                        </div>
+                        <div className="flex-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Voltage (V)</label>
+                            <input 
+                                type="text" 
+                                placeholder="e.g. 120" 
+                                value={filterVoltage}
+                                onChange={(e) => setFilterVoltage(e.target.value)}
+                                className="w-full text-xs border rounded p-1.5"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Search Bar */}
                     <div className="relative">
                         <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
                         <input 
@@ -345,7 +374,7 @@ export default function Step3_Configurator({ builder }) {
                     </div>
                 </div>
 
-                {/* 2. COMPONENT LIST (ACCORDION) */}
+                {/* 2. COMPONENT LIST */}
                 <div className="overflow-y-auto flex-1 border-b bg-white">
                     {Object.entries(groupedComponents).map(([groupName, components]) => {
                         if (components.length === 0) return null;
@@ -380,18 +409,19 @@ export default function Step3_Configurator({ builder }) {
                                                                 <div className="scale-50">{getComponentIcon(comp)}</div>
                                                             </div>
                                                             <div>
-                                                                <div className="font-bold text-sm text-slate-700">{comp.name} {comp.holes > 1 && <span className="text-xs text-blue-600">({comp.holes} Holes)</span>}</div>
+                                                                <div className="font-bold text-sm text-slate-700">
+                                                                    {comp.name} 
+                                                                    {comp.voltage && <span className="ml-1 text-[10px] bg-slate-100 px-1 rounded text-slate-500">{comp.voltage}V {comp.voltageType}</span>}
+                                                                </div>
                                                                 <div className="text-[10px] text-slate-400 font-mono">{comp.partNumber}</div>
                                                             </div>
                                                         </div>
                                                     </div>
                                                     
-                                                    {/* DYNAMIC ACTION BUTTON */}
                                                     {isHousingAcc ? (
                                                         <button 
                                                             onClick={() => {
                                                                 updateExtraSlot('large', comp.id);
-                                                                // AUTO-COLLAPSE ON SELECTION
                                                                 setExpandedGroups(prev => ({ ...prev, 'Housing Accessories': false }));
                                                             }}
                                                             className="mt-2 w-full py-1.5 bg-yellow-100 hover:bg-yellow-600 hover:text-white text-yellow-800 text-xs font-bold rounded transition-colors flex items-center justify-center gap-1"
@@ -419,10 +449,9 @@ export default function Step3_Configurator({ builder }) {
                         );
                     })}
                     
-                    {/* Empty State for Search */}
                     {Object.values(groupedComponents).every(arr => arr.length === 0) && (
                         <div className="p-8 text-center text-slate-400 text-sm">
-                            No components found matching "{searchTerm}"
+                            No components found matching your filters.
                         </div>
                     )}
                 </div>

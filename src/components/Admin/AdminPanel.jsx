@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Database, Plus, Cable, Plug, Layout, LogOut, 
-  ChevronDown, ChevronRight, Folder, Settings, RefreshCw, FileText, Edit 
+  ChevronDown, ChevronRight, Folder, Settings, FileText, Edit 
 } from 'lucide-react';
 import AdminViews from './AdminViews';
 import AdminForms from './AdminForms';
@@ -11,7 +11,7 @@ export default function AdminPanel(props) {
     const { 
         manufacturers, seriesData, cables, accessories, componentTypes, footerConfig,
         setManufacturers, setSeriesData, setCables, setAccessories, setComponentTypes, setFooterConfig,
-        onLogout, onReturnToBuilder, seedDatabase, dbActions 
+        onLogout, onReturnToBuilder, dbActions 
     } = props;
 
     // --- LOCAL ADMIN STATE ---
@@ -20,6 +20,7 @@ export default function AdminPanel(props) {
     const [selectedSeriesAdmin, setSelectedSeriesAdmin] = useState(null);
     const [adminSubTab, setAdminSubTab] = useState('enclosures');
     
+    // Edit Mode State
     const [isEditing, setIsEditing] = useState(false);
     const [editItem, setEditItem] = useState(null);
 
@@ -93,6 +94,7 @@ export default function AdminPanel(props) {
             </div>
 
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                {/* Global Assets */}
                 <div className="mb-4">
                     <div className="px-3 py-1 text-xs font-bold text-slate-500 uppercase tracking-wider">Global Assets</div>
                     <button onClick={() => handleGlobalNav('cables')} className={`w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 ${globalTab === 'cables' ? 'bg-slate-800 text-white' : ''}`}>
@@ -103,6 +105,7 @@ export default function AdminPanel(props) {
                     </button>
                 </div>
 
+                {/* Data Tools */}
                 <div className="mb-4">
                     <div className="px-3 py-1 text-xs font-bold text-slate-500 uppercase tracking-wider">Tools</div>
                     <button onClick={() => handleGlobalNav('data-tools')} className={`w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 ${globalTab === 'data-tools' ? 'bg-slate-800 text-white' : ''}`}>
@@ -110,6 +113,7 @@ export default function AdminPanel(props) {
                     </button>
                 </div>
 
+                {/* Site Settings */}
                 <div className="mb-4">
                     <div className="px-3 py-1 text-xs font-bold text-slate-500 uppercase tracking-wider">Site Settings</div>
                     <button onClick={() => handleGlobalNav('footer')} className={`w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 ${globalTab === 'footer' ? 'bg-slate-800 text-white' : ''}`}>
@@ -117,6 +121,7 @@ export default function AdminPanel(props) {
                     </button>
                 </div>
 
+                {/* Manufacturers List */}
                 <div className="px-3 py-1 text-xs font-bold text-slate-500 uppercase tracking-wider">Manufacturers</div>
                 {sortedManufacturers.map(m => (
                     <div key={m.id}>
@@ -128,6 +133,7 @@ export default function AdminPanel(props) {
                             {selectedManufacturerAdmin === m.id && !globalTab ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}
                         </button>
                         
+                        {/* Series Sub-menu */}
                         {selectedManufacturerAdmin === m.id && !globalTab && (
                             <div className="ml-4 mt-1 border-l-2 border-slate-700 pl-2 space-y-1">
                                 {Array.from(new Set((seriesData[m.id]?.enclosures || []).map(e => e.series))).map(s => (
@@ -142,13 +148,6 @@ export default function AdminPanel(props) {
             </div>
 
             <div className="p-4 border-t border-slate-800 space-y-2">
-                <button 
-                    onClick={seedDatabase}
-                    className="w-full bg-blue-900/50 hover:bg-blue-800 text-blue-200 px-3 py-2 rounded text-xs font-bold flex items-center justify-center gap-2 transition-colors"
-                >
-                    <RefreshCw size={14} /> Seed Default Data
-                </button>
-
                 <div className="flex justify-between items-center pt-2">
                     <button onClick={onReturnToBuilder} className="text-slate-400 hover:text-white text-xs flex items-center gap-1">Back to Builder</button>
                     <button onClick={onLogout} className="text-red-400 hover:text-red-300 text-xs flex items-center gap-1"><LogOut size={12}/> Logout</button>
@@ -177,15 +176,15 @@ export default function AdminPanel(props) {
                             </h2>
                         </div>
                         <div className="flex gap-2">
+                            {/* EDIT MANUFACTURER BUTTON */}
                             {selectedManufacturerAdmin && !selectedSeriesAdmin && !isEditing && (
                                 <button 
                                     onClick={() => {
                                         const mfg = manufacturers.find(m => m.id === selectedManufacturerAdmin);
                                         if (mfg) {
                                             setEditItem(mfg);
-                                            // setTempImage... removed (handled in form now)
-                                            setAdminSubTab(null);
                                             setIsEditing(true);
+                                            setAdminSubTab(null);
                                         }
                                     }}
                                     className="bg-slate-100 text-slate-700 px-3 py-2 rounded text-sm font-bold flex items-center gap-1 border border-slate-300 hover:bg-slate-200"
@@ -203,7 +202,22 @@ export default function AdminPanel(props) {
                             )}
                             
                             {!isEditing && globalTab !== 'footer' && globalTab !== 'add-mfg' && globalTab !== 'data-tools' && (
-                                <button onClick={() => { resetEditState(); setIsEditing(true); }} className="bg-blue-600 text-white px-3 py-2 rounded text-sm font-bold flex items-center gap-1 shadow hover:bg-blue-700"><Plus size={16} /> Add Item</button>
+                                <button 
+                                    onClick={() => { 
+                                        resetEditState(); 
+                                        setIsEditing(true); 
+                                        // UPDATED: Logic to detect if we are adding a Series or a generic Item
+                                        if (selectedManufacturerAdmin && !selectedSeriesAdmin) {
+                                            setAdminSubTab('series-new');
+                                        } else {
+                                            // Default behavior for other tabs
+                                        }
+                                    }} 
+                                    className="bg-blue-600 text-white px-3 py-2 rounded text-sm font-bold flex items-center gap-1 shadow hover:bg-blue-700"
+                                >
+                                    <Plus size={16} /> 
+                                    {selectedManufacturerAdmin && !selectedSeriesAdmin ? 'Add Series' : 'Add Item'}
+                                </button>
                             )}
                         </div>
                     </div>
@@ -224,6 +238,7 @@ export default function AdminPanel(props) {
                     ) : (
                         <AdminViews 
                             {...props} 
+                            dbActions={dbActions}
                             globalTab={globalTab} selectedManufacturerAdmin={selectedManufacturerAdmin} selectedSeriesAdmin={selectedSeriesAdmin} adminSubTab={adminSubTab} 
                             onEdit={(item) => { setEditItem(item); setIsEditing(true); }} 
                             onDelete={handleDelete}

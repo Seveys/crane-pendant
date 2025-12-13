@@ -31,6 +31,7 @@ export default function CableForm({ editItem, dbActions, onCancel, onSaveSuccess
             type: formData.get('type'), 
             conductors: parseInt(formData.get('conductors')), 
             awg: parseInt(formData.get('awg')), 
+            // UPDATED: Allow 0.001 precision
             od_min: parseFloat(formData.get('od_min')), 
             od_max: parseFloat(formData.get('od_max')), 
             strainRelief: formData.get('strainRelief'), 
@@ -49,8 +50,11 @@ export default function CableForm({ editItem, dbActions, onCancel, onSaveSuccess
                 <div><label className="text-xs font-bold">Type</label><input name="type" defaultValue={editItem?.type} className="w-full border p-1 rounded"/></div>
                 <div><label className="text-xs font-bold">Cond.</label><input name="conductors" type="number" defaultValue={editItem?.conductors} className="w-full border p-1 rounded"/></div>
                 <div><label className="text-xs font-bold">AWG</label><input name="awg" type="number" defaultValue={editItem?.awg || 16} className="w-full border p-1 rounded"/></div>
-                <div><label className="text-xs font-bold">Min OD</label><input name="od_min" type="number" step="0.01" defaultValue={editItem?.od_min} className="w-full border p-1 rounded"/></div>
-                <div><label className="text-xs font-bold">Max OD</label><input name="od_max" type="number" step="0.01" defaultValue={editItem?.od_max} className="w-full border p-1 rounded"/></div>
+                
+                {/* UPDATED STEPS */}
+                <div><label className="text-xs font-bold">Min OD</label><input name="od_min" type="number" step="0.001" defaultValue={editItem?.od_min} className="w-full border p-1 rounded"/></div>
+                <div><label className="text-xs font-bold">Max OD</label><input name="od_max" type="number" step="0.001" defaultValue={editItem?.od_max} className="w-full border p-1 rounded"/></div>
+                
                 <div><label className="text-xs font-bold">Strain Relief</label><select name="strainRelief" defaultValue={editItem?.strainRelief || 'external'} className="w-full border p-1 rounded"><option value="external">External</option><option value="internal">Internal</option></select></div>
                 <div className="col-span-4">
                     <label className="text-xs font-bold block mb-1">Image</label>

@@ -59,6 +59,11 @@ export default function ComponentForm({ editItem, dbActions, selectedSeriesAdmin
             wires: parseInt(formData.get('wires')), 
             holes: parseInt(formData.get('holes')), 
             color: formData.get('color'), 
+            
+            // --- UPDATED: VOLTAGE FIELDS ---
+            voltage: formData.get('voltage'),
+            voltageType: formData.get('voltageType'),
+            
             description: formData.get('description'), 
             image: tempImage,
             docs: tempDocs
@@ -98,6 +103,22 @@ export default function ComponentForm({ editItem, dbActions, selectedSeriesAdmin
                     </select>
                 </div>
                 <div><label className="text-xs font-bold">Color</label><input name="color" defaultValue={editItem?.color} className="w-full border p-2 rounded"/></div>
+                
+                {/* --- NEW VOLTAGE FIELDS --- */}
+                <div>
+                    <label className="text-xs font-bold">Voltage</label>
+                    <input name="voltage" defaultValue={editItem?.voltage} className="w-full border p-2 rounded" placeholder="e.g. 120, 24"/>
+                </div>
+                <div>
+                    <label className="text-xs font-bold block mb-1">Voltage Type</label>
+                    <select name="voltageType" defaultValue={editItem?.voltageType || 'universal'} className="w-full border p-2 rounded bg-white">
+                        <option value="universal">Universal / None</option>
+                        <option value="AC">AC</option>
+                        <option value="DC">DC</option>
+                        <option value="AC/DC">AC/DC</option>
+                    </select>
+                </div>
+
                 <div><label className="text-xs font-bold">Holes</label><input name="holes" type="number" defaultValue={editItem?.holes || 1} className="w-full border p-2 rounded"/></div>
                 <div><label className="text-xs font-bold">Wires</label><input name="wires" type="number" defaultValue={editItem?.wires || 0} className="w-full border p-2 rounded"/></div>
                 

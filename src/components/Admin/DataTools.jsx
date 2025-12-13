@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Download, Upload, FileText, CheckCircle, AlertTriangle } from 'lucide-react';
+import { toDecimalInches } from '../../utils/units'; // <--- Import Utility
 
 export default function DataTools({ seriesData, dbActions }) {
     const [importStats, setImportStats] = useState(null);
@@ -7,7 +8,6 @@ export default function DataTools({ seriesData, dbActions }) {
 
     // --- EXPORT TO CSV ---
     const handleExport = () => {
-        // UPDATED HEADERS
         const headers = ['ManufacturerID', 'ID', 'Series', 'Model', 'KCID', 'Holes', 'Depth', 'MaxContactDepth', 'AcceptedODMin', 'AcceptedODMax', 'StrainRelief (Split by |)', 'ImageURL'];
         const rows = [];
 
@@ -24,8 +24,8 @@ export default function DataTools({ seriesData, dbActions }) {
                         enc.holes,
                         enc.depth,
                         enc.max_contact_depth,
-                        enc.accepted_od_min || 0, // NEW
-                        enc.accepted_od_max || 0, // NEW
+                        enc.accepted_od_min || 0,
+                        enc.accepted_od_max || 0,
                         srString,
                         enc.image || ''
                     ]);
@@ -80,8 +80,11 @@ export default function DataTools({ seriesData, dbActions }) {
                         holes: parseInt(cols[5]) || 1,
                         depth: cols[6],
                         max_contact_depth: parseInt(cols[7]) || 3,
-                        accepted_od_min: parseFloat(cols[8]) || 0, // NEW
-                        accepted_od_max: parseFloat(cols[9]) || 0, // NEW
+                        
+                        // --- UPDATED: Use smart converter ---
+                        accepted_od_min: toDecimalInches(cols[8]), 
+                        accepted_od_max: toDecimalInches(cols[9]), 
+                        
                         supportedStrainRelief: cols[10] ? cols[10].split('|') : [],
                         image: cols[11] || null
                     };
@@ -143,6 +146,7 @@ export default function DataTools({ seriesData, dbActions }) {
                 <ol className="list-decimal pl-5 space-y-1">
                     <li>Click <strong>Export to CSV</strong> to get a template.</li>
                     <li>Edit in Excel/Sheets. <strong>Do not change ManufacturerID</strong>.</li>
+                    <li><strong>OD Fields:</strong> Accepts decimals (0.5), fractions (1/2), or mm (12mm).</li>
                     <li>For "StrainRelief", separate with | (e.g. <code>internal|external</code>).</li>
                     <li>Save as CSV and upload.</li>
                 </ol>
